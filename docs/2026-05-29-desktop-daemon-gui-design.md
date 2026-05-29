@@ -226,7 +226,7 @@
 ## 5. 项目结构
 
 ```
-examples/desktop-daemon-gui/
+./
 ├── src-tauri/                  # Tauri Rust 核心
 │   ├── Cargo.toml              # Rust 依赖声明
 │   ├── tauri.conf.json         # Tauri 配置（见 Section 12.1）
@@ -473,10 +473,10 @@ Web 前端 Dashboard 组件挂载
     uv sync --frozen
         ↓
 [2] 打包 venv 到 Tauri Resources
-    bash examples/desktop-daemon-gui/scripts/bundle-python.sh
+    bash scripts/bundle-python.sh
     → 复制 .venv/ → src-tauri/Resources/python/
         ↓
-[3] 构建前端（在 examples/desktop-daemon-gui/ 执行）
+[3] 构建前端（在项目根目录执行）
     pnpm install
     pnpm build
     → Vite 输出 → dist/
@@ -1249,12 +1249,12 @@ set -euo pipefail
 # bundle-python.sh — 将 OpenViking 的 Python venv 打包到 Tauri Resources 目录
 #
 # 用法：在 OpenViking 根目录执行
-#   bash examples/desktop-daemon-gui/scripts/bundle-python.sh
+#   bash scripts/bundle-python.sh
 #
 # 前置条件：已在 OpenViking 根目录执行过 uv sync --frozen
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TAURI_RESOURCES="$SCRIPT_DIR/../src-tauri/Resources/python"
 
 echo "=== 打包 Python venv 到 Tauri Resources ==="
