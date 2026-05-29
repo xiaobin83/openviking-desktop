@@ -11,7 +11,7 @@
 | 目标 | 说明 |
 |---|---|
 | 零环境依赖 | 打包时预构建完整 Python venv，用户无需安装 Python 或任何依赖 |
-| 独立分发 | 以 macOS DMG（后续扩展 Windows/Linux）格式独立分发 |
+| 独立分发 | 以 macOS DMG 格式独立分发 |
 | 开箱即用 | 启动即运行 openviking-server，提供图形化配置 |
 | 守护进程 | 应用常驻菜单栏，后台静默提供服务 |
 | 仪表盘 | 窗口仪表盘展示服务状态、存储用量、资源/记忆统计 |
@@ -48,8 +48,8 @@
 │  │  仪表盘       │          │  托盘菜单          │            │
 │  │  配置表单     │          │  子进程 spawn      │            │
 │  │              │          │  健康检查轮询       │            │
-│  └──────┬───────┘          │  fs 文件访问       │            │
-│         │                  └────────┬─────────┘            │
+│  │              │          │  fs 文件访问       │            │
+│  └──────┬───────┘          └────────┬─────────┘            │
 │         │  HTTP (fetch)             │ spawn                │
 │         │                           ▼                      │
 │         │                  ┌──────────────────┐            │
@@ -65,21 +65,21 @@
 
 **选择理由**：
 - Rust 代码量最小，降低维护成本
-- 直接复用 openviking-server 全部 18 个路由 + MCP 端点
+- 直接复用 openviking-server 全部 REST API 端点
 - 新增前端功能无需修改 Rust 代码
 - 符合 Tauri "轻量壳 + Web 内容" 的设计哲学
 
 ### 2.2 技术栈
 
-| 层 | 技术 | 精确版本要求 |
+| 层 | 技术 | 版本要求 |
 |---|---|---|
 | 桌面框架 | Tauri v2 | `tauri = "2"`, Rust edition 2021 |
 | 前端框架 | React 18 + TypeScript 5 | `react@^18`, `typescript@^5` |
 | CSS | Tailwind CSS v4 | `tailwindcss@^4` |
 | 构建 | Vite 6 | `vite@^6` |
 | Tauri CLI | `@tauri-apps/cli` v2 | `npm create tauri-app@latest` |
-| Python 环境 | uv + 预构建 venv | Python >= 3.10, `uv` 最新版 |
-| 服务端 | openviking-server (FastAPI) | 通过现有 REST API 提供数据服务 |
+| Python 环境 | uv + 预构建 venv | Python 3.12, uv 最新版 |
+| 服务端 | openviking-server (FastAPI) | 通过 PyPI 安装，REST API 提供数据服务 |
 | 打包 | Tauri bundler → DMG | macOS 14+ |
 
 ---
@@ -105,21 +105,23 @@
 - 点击"服务运行中/已停止"切换启停
 - "打开仪表盘"打开管理窗口，窗口关闭后应用仍在后台运行
 - "退出"停止服务并退出应用
+- 左键单击托盘图标：切换仪表盘窗口的显示/隐藏
 
 ### 3.2 仪表盘窗口
 
-窗口包含两个 Tab：
+窗口顶部包含两个 Tab（通过顶部按钮切换）：
 
 **概览 Tab**：
 - 服务状态卡片：运行中/已停止/启动中/异常，版本号
 - 资源数量：文件数、技能数
 - 记忆数量：记忆总数、按类别分布
-- 服务版本号
+- 每 10 秒自动刷新
 
 **配置 Tab**：
 - 四个子 Tab：基础 / AI 模型 / 存储 / 高级
+- 加载时通过 Tauri IPC 读取 `~/.openviking/ov.conf`
 - 表单式配置，保存后写入 ov.conf
-- 保存后弹出"需重启服务生效"提示
+- 保存后弹出"配置已保存，需重启服务生效"提示
 
 ---
 
@@ -216,10 +218,11 @@
 ### 4.6 配置读写机制
 
 - 配置文件路径：`~/.openviking/ov.conf`
-- Web 前端通过 Tauri `@tauri-apps/plugin-fs` 插件直接读写 JSON 文件
-- 读取：页面加载时解析 ov.conf → 填充表单（使用 `JSON.parse()`）
-- 写入：点击"保存"时将表单数据序列化为 JSON → `JSON.stringify(data, null, 2)` → 写入 ov.conf
-- 校验：保存前进行字段类型校验（number 字段不是 NaN，string 字段非空等），字段非法时高亮提示
+- Web 前端通过 Tauri `invoke("read_config")` / `invoke("write_config")` 间接读写，Rust 端使用 `std::fs` 操作文件
+- 读取：页面加载时 invoke → Rust 读取 ov.conf → 返回 JSON 字符串 → 前端 `JSON.parse()`
+- 写入：点击"保存"时将表单数据序列化为 JSON → `invoke("write_config", { config: jsonStr })` → Rust 端写入文件
+- 校验：保存前前端进行字段类型校验（number 字段不是 NaN，string 字段非空等），字段非法时高亮提示
+- 错误恢复：若 ov.conf JSON 格式错误，前端显示红色横幅并提供"重置为默认配置"按钮
 
 ---
 
@@ -227,18 +230,35 @@
 
 ```
 ./
+├── scripts/
+│   └── bundle-python.sh        # 构建阶段脚本：创建 venv 并安装 openviking
+│
+├── resources/
+│   └── python/                  # 预构建 Python venv（gitignored，构建时生成）
+│       ├── bin/
+│       │   ├── python3          # Python 3.12 解释器
+│       │   └── pip              # pip 包管理器
+│       └── lib/
+│           └── python3.12/
+│               └── site-packages/
+│                   └── openviking/  # + 所有依赖
+│
 ├── src-tauri/                  # Tauri Rust 核心
 │   ├── Cargo.toml              # Rust 依赖声明
 │   ├── tauri.conf.json         # Tauri 配置（见 Section 12.1）
+│   ├── build.rs                # Tauri 构建脚本
+│   ├── Resources/
+│   │   └── python -> ../../resources/python  # 符号链接
 │   ├── capabilities/
 │   │   └── default.json        # 权限声明（见 Section 12.3）
 │   ├── icons/
 │   │   └── icon.png            # 应用图标 (1024x1024 PNG)
+│   │   └── icon.icns           # macOS .icns 图标
 │   └── src/
-│       ├── main.rs             # 入口：创建 Tauri app、注册 SystemTray（见 Section 12.4.1）
-│       ├── tray.rs             # 菜单栏托盘管理（见 Section 12.4.2）
+│       ├── main.rs             # 入口：创建 Tauri app（见 Section 12.4.1）
+│       ├── lib.rs              # Tauri IPC 命令注册、ServerState 管理（见 Section 12.4.2）
 │       ├── process.rs          # Python sidecar 进程管理（见 Section 12.4.3）
-│       └── lib.rs              # Tauri IPC 命令注册（见 Section 12.4.4）
+│       └── tray.rs             # 菜单栏托盘管理（见 Section 12.4.4）
 │
 ├── src/                        # Web 前端
 │   ├── main.tsx                # React 入口
@@ -256,12 +276,9 @@
 │   │       ├── StorageTab.tsx  # 存储配置表单
 │   │       └── AdvancedTab.tsx # 高级配置表单
 │   ├── lib/
-│   │   ├── api.ts              # REST API 封装，base URL = http://127.0.0.1:1933
-│   │   └── types.ts            # TypeScript 类型定义
+│   │   ├── api.ts              # REST API 封装（见 Section 12.5.1）
+│   │   └── types.ts            # TypeScript 类型定义（HealthResponse, OvConfig 等）
 │   └── vite-env.d.ts           # Vite 环境类型声明
-│
-├── scripts/
-│   └── bundle-python.sh        # 构建阶段脚本（见 Section 12.6）
 │
 ├── docs/
 │   └── 2026-05-29-desktop-daemon-gui-design.md
@@ -272,6 +289,13 @@
 ├── tsconfig.node.json
 ├── vite.config.ts
 └── .gitignore
+```
+
+项目根路径关系（相对于 openviking 工作区根目录）：
+```
+openviking/
+├── OpenViking/                 # openviking Python 包源码
+└── openviking-desktop/         # ← 本项目（Tauri 桌面应用）
 ```
 
 ---
@@ -371,8 +395,11 @@ GET http://127.0.0.1:1933/api/v1/stats/memories?category=profile
 用户点击"启动服务"
     → Web 前端 invoke("start_server")
     → Rust 端：
-        → 构建 venv python 路径：{app_resource_dir}/python/bin/python3
-        → 检查文件存在性
+        → Python 路径解析（dev/prod 降级）
+          dev:     resources/python/bin/python3
+          symlink: Resources/python/bin/python3  (符号链接)
+          prod:    {app_resource_dir}/python/bin/python3
+        → 检查 python 文件存在性
         → 确定 ov.conf 路径：~/.openviking/ov.conf
         → 创建日志目录：~/Library/Logs/OpenViking/
         → 打开 server.log 文件句柄
@@ -395,9 +422,10 @@ GET http://127.0.0.1:1933/api/v1/stats/memories?category=profile
 **仪表盘数据加载**：
 ```
 Web 前端 Dashboard 组件挂载
-    → GET /health                           → healthy 状态 + version
-    → GET /api/v1/console/dashboard/summary  → context_counts + today_tokens
-    → GET /api/v1/stats/memories             → total_memories + by_category
+    → invoke("get_server_status")              → 当前状态
+    → GET /health                               → healthy 状态 + version
+    → GET /api/v1/console/dashboard/summary     → context_counts + today_tokens
+    → GET /api/v1/stats/memories                → total_memories + by_category
     → 将数据聚合后渲染 StatusCard + StatsGrid
     → 每 10 秒自动刷新一次
 ```
@@ -407,14 +435,14 @@ Web 前端 Dashboard 组件挂载
 **配置保存流程**：
 ```
 用户填写表单 → 点击"保存配置"
-    → Web 前端序列化表单数据 → 构建 ov.conf JSON 对象
+    → Web 前端序列化表单数据 → 构建 ov.conf JSON 字符串
     → 字段类型校验（number 不为 NaN，string 不为空）
-    → invoke("write_config", { config: ovConfJson })
+    → invoke("write_config", { config: jsonStr })
     → Rust 端：
         → 确保 ~/.openviking/ 目录存在
-        → fs::write(ov_conf_path, JSON.stringify(config, null, 2))
+        → fs::write(ov_conf_path, &config)
         → 返回 { success: true }
-    → Web 前端弹出提示："配置已保存，需重启服务生效"，显示 [重启服务] 按钮
+    → Web 前端弹出提示："配置已保存，需重启服务生效"
 ```
 
 ---
@@ -469,24 +497,24 @@ Web 前端 Dashboard 组件挂载
 ### 8.1 构建流程
 
 ```
-[1] 准备 Python 环境（在 OpenViking 根目录执行）
-    uv sync --frozen
-        ↓
-[2] 打包 venv 到 Tauri Resources
+[1] 创建 venv + 安装 openviking（在项目根目录执行）
     bash scripts/bundle-python.sh
-    → 复制 .venv/ → src-tauri/Resources/python/
+    → uv venv --python 3.12 resources/python/
+    → uv pip install openviking
+    → 清理 __pycache__
         ↓
-[3] 构建前端（在项目根目录执行）
+[2] 构建前端（在项目根目录执行）
     pnpm install
     pnpm build
-    → Vite 输出 → dist/
+    → tsc --noEmit && vite build → dist/
         ↓
-[4] Tauri 打包
-    pnpm tauri build --bundles dmg
+[3] Tauri 打包
+    pnpm tauri build
     → cargo build --release（Rust 后端）
+    → 复制 Resources/python/**/* 进 app bundle
     → 签名 + DMG 打包
         ↓
-[5] 产物
+[4] 产物
     src-tauri/target/release/bundle/dmg/OpenViking_0.1.0_aarch64.dmg
 ```
 
@@ -496,19 +524,19 @@ Web 前端 Dashboard 组件挂载
 OpenViking.app/
 ├── Contents/
 │   ├── MacOS/
-│   │   └── desktop-daemon-gui       # Tauri 编译的 Rust 二进制
+│   │   └── openviking-desktop     # Tauri 编译的 Rust 二进制
 │   ├── Resources/
-│   │   ├── python/                   # 预构建 Python venv
+│   │   ├── python/                 # 预构建 Python venv
 │   │   │   ├── bin/
-│   │   │   │   └── python3          # Python 解释器
+│   │   │   │   └── python3        # Python 3.12 解释器
 │   │   │   └── lib/
-│   │   │       └── python3.xx/
+│   │   │       └── python3.12/
 │   │   │           └── site-packages/
 │   │   │               └── openviking/  # + 所有依赖
-│   │   ├── index.html                # 前端入口
-│   │   ├── assets/                   # Vite 打包产物
-│   │   └── icons/                    # 应用图标
-│   ├── Frameworks/                   # Tauri WebView 依赖
+│   │   ├── index.html              # 前端入口
+│   │   ├── assets/                 # Vite 打包产物
+│   │   └── icons/                  # 应用图标
+│   ├── Frameworks/                 # Tauri WebView 依赖
 │   └── Info.plist
 ```
 
@@ -580,29 +608,30 @@ OpenViking.app/
 | v1.0 范围 | 最小 / 仪表盘 / 完整 | 守护 + 仪表盘 | 可验证核心链路 + 有展示价值 |
 | 架构模式 | Thin Shell / Proxy / Rust-First | Thin Shell | 最少 Rust 代码，最大复用现有 API |
 | 前端框架 | React / Vue / Svelte | React | Tauri 官方模板支持最好，生态最成熟 |
+| Python venv 工具 | python venv / uv / virtualenv | uv | 更快的创建速度，避免 Python 3.14 ensurepip 兼容问题 |
+| openviking 安装方式 | 源码 install / PyPI / 复制 .venv | PyPI pip install | 不依赖本地 OpenViking 源码，构建流程简洁 |
 
 ---
 
 ## 12. 实施参考（Implementation Reference）
 
-> 本章节为实施 agent 提供可直接使用的配置模板和代码骨架。
+> 本章节提供与实际实现一致的配置和代码。实施 agent 可直接参考。
 
-### 12.1 tauri.conf.json 模板
+### 12.1 tauri.conf.json
 
 ```json
 {
   "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-cli/schema.json",
   "productName": "OpenViking",
   "version": "0.1.0",
-  "identifier": "com.openviking.desktop-daemon-gui",
+  "identifier": "com.openviking.desktop",
   "build": {
     "frontendDist": "../dist",
-    "devUrl": "http://localhost:5173",
+    "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "pnpm build",
     "beforeDevCommand": "pnpm dev"
   },
   "app": {
-    "title": "OpenViking",
     "withGlobalTauri": true,
     "windows": [
       {
@@ -646,14 +675,15 @@ OpenViking.app/
 关键说明：
 - `"visible": false` — 仪表盘窗口初始隐藏，通过托盘菜单打开
 - `"iconAsTemplate": true` — macOS 模板图标（自动适配亮暗模式）
-- `"resources"` — 将 `Resources/python/` 目录打包进 app bundle
+- `"resources"` — 将 `Resources/python/**/*` 目录打包进 app bundle
 - `"identifier"` — macOS bundle identifier，确保唯一性
+- `devUrl` 使用端口 1420（Vite 默认 5173，此处为 Tauri 创建项目时的配置）
 
-### 12.2 package.json 依赖
+### 12.2 package.json
 
 ```json
 {
-  "name": "openviking-desktop-daemon-gui",
+  "name": "openviking-desktop",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -714,18 +744,18 @@ OpenViking.app/
 }
 ```
 
-### 12.4 Rust 代码骨架
+### 12.4 Rust 代码
 
 #### 12.4.1 Cargo.toml
 
 ```toml
 [package]
-name = "desktop-daemon-gui"
+name = "openviking-desktop"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "desktop_daemon_gui_lib"
+name = "openviking_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -741,9 +771,20 @@ reqwest = { version = "0.12", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 log = "0.4"
 env_logger = "0.11"
+dirs = "6"
 ```
 
-#### 12.4.2 lib.rs — Tauri IPC 命令注册
+#### 12.4.2 main.rs — 入口
+
+```rust
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+fn main() {
+    openviking_desktop_lib::run()
+}
+```
+
+#### 12.4.3 lib.rs — Tauri IPC 命令注册
 
 ```rust
 use tauri::Manager;
@@ -755,11 +796,23 @@ mod tray;
 
 pub struct ServerState {
     pub child: Mutex<Option<Child>>,
-    pub status: Mutex<String>, // "stopped" | "starting" | "running" | "error" | "timeout"
+    pub status: Mutex<String>,
     pub port: Mutex<u16>,
     pub python_path: String,
     pub ov_conf_path: String,
     pub server_log_path: String,
+}
+
+impl Drop for ServerState {
+    fn drop(&mut self) {
+        if let Ok(mut guard) = self.child.try_lock() {
+            if let Some(ref mut child) = *guard {
+                log::info!("ServerState::drop: killing openviking-server");
+                let _ = child.kill();
+                let _ = child.wait();
+            }
+        }
+    }
 }
 
 #[tauri::command]
@@ -769,10 +822,6 @@ async fn get_server_status(state: tauri::State<'_, ServerState>) -> Result<Strin
 
 #[tauri::command]
 async fn start_server(state: tauri::State<'_, ServerState>, app: tauri::AppHandle) -> Result<String, String> {
-    // 1. 检查是否已运行
-    // 2. 调用 process::spawn_server()
-    // 3. 后台轮询 health
-    // 4. emit("server-status-changed", status)
     process::spawn_server(&state, &app).await
 }
 
@@ -793,7 +842,6 @@ async fn read_config(state: tauri::State<'_, ServerState>) -> Result<String, Str
 #[tauri::command]
 async fn write_config(state: tauri::State<'_, ServerState>, config: String) -> Result<String, String> {
     let path = &state.ov_conf_path;
-    // 确保目录存在
     if let Some(parent) = std::path::Path::new(path).parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("创建目录失败: {}", e))?;
     }
@@ -806,7 +854,6 @@ async fn read_server_log(state: tauri::State<'_, ServerState>) -> Result<String,
     let path = &state.server_log_path;
     match std::fs::read_to_string(path) {
         Ok(content) => {
-            // 返回最近 100 行
             let lines: Vec<&str> = content.lines().collect();
             let start = if lines.len() > 100 { lines.len() - 100 } else { 0 };
             Ok(lines[start..].join("\n"))
@@ -823,13 +870,20 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
-            // 初始化 ServerState
-            let resource_dir = app.path().resource_dir()
-                .expect("failed to resolve resource dir");
-            let python_path = resource_dir
-                .join("python/bin/python3")
-                .to_string_lossy()
-                .to_string();
+            // Python 路径解析：dev / symlink / prod 三级降级
+            let python_path = {
+                let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+                let root_dir = manifest_dir.parent().unwrap_or(manifest_dir);
+                let dev_path = root_dir.join("resources/python/bin/python3");
+                let symlink_path = manifest_dir.join("Resources/python/bin/python3");
+                let resource_dir = app.path().resource_dir()
+                    .expect("failed to resolve resource dir");
+                let prod_path = resource_dir.join("python/bin/python3");
+                if dev_path.exists() { dev_path }
+                else if symlink_path.exists() { symlink_path }
+                else { prod_path }
+            }.to_string_lossy().to_string();
+            log::info!("Python path: {}", python_path);
 
             let home = dirs::home_dir().expect("no home dir");
             let ov_conf_path = home
@@ -841,7 +895,6 @@ pub fn run() {
                 .to_string_lossy()
                 .to_string();
 
-            // 确保日志目录存在
             if let Some(parent) = std::path::Path::new(&server_log_path).parent() {
                 std::fs::create_dir_all(parent).ok();
             }
@@ -855,10 +908,9 @@ pub fn run() {
                 server_log_path,
             });
 
-            // 注册托盘
-            tray::create_tray(app)?;
+            tray::create_tray(app.handle())?;
 
-            // 自动启动：检查 ov.conf 是否存在，不存在则创建默认配置
+            // 自动生成默认 ov.conf（若不存在）
             let state = app.state::<ServerState>();
             let conf_path = state.ov_conf_path.clone();
             if !std::path::Path::new(&conf_path).exists() {
@@ -875,10 +927,11 @@ pub fn run() {
             }
 
             // 自动启动服务
-            let state_for_spawn = app.state::<ServerState>().clone();
-            let app_for_spawn = app.handle().clone();
+            let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                let _ = process::spawn_server(&state_for_spawn, &app_for_spawn).await;
+                if app_handle.try_state::<ServerState>().is_some() {
+                    let _ = process::spawn_server_with_app_handle(&app_handle).await;
+                }
             });
 
             Ok(())
@@ -892,7 +945,6 @@ pub fn run() {
             read_server_log,
         ])
         .on_window_event(|window, event| {
-            // 窗口关闭时隐藏而非退出
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if window.label() == "dashboard" {
                     api.prevent_close();
@@ -900,24 +952,49 @@ pub fn run() {
                 }
             }
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            if let tauri::RunEvent::Exit = event {
+                if let Some(state) = app_handle.try_state::<ServerState>() {
+                    let mut child_opt = state.child.lock().unwrap();
+                    if let Some(ref mut c) = *child_opt {
+                        log::info!("Killing openviking-server on RunEvent::Exit");
+                        let _ = c.kill();
+                        let _ = c.wait();
+                    }
+                    *child_opt = None;
+                }
+            }
+        });
 }
 ```
 
-#### 12.4.3 process.rs — 进程管理器
+关键差异说明（相比设计初版）：
+- **`Drop` impl** for `ServerState` — 确保 ServerState 析构时终止子进程
+- **Python 路径三级降级** — `dev_path` (resources/python/) → `symlink_path` (Resources/python/) → `prod_path` (app bundle 内 resource dir)
+- **`build()` + `run()` 模式** — 分离构建和运行，在 `RunEvent::Exit` 中清理子进程
+- **`spawn_server_with_app_handle`** — 从 AppHandle 获取 ServerState 的便捷包装
+
+#### 12.4.4 process.rs — 进程管理器
 
 ```rust
-use std::process::{Child, Command, Stdio};
+use std::process::{Command, Stdio};
 use std::fs::File;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use crate::ServerState;
+
+pub async fn spawn_server_with_app_handle(
+    app: &AppHandle,
+) -> Result<String, String> {
+    let state = app.state::<ServerState>();
+    spawn_server(&state, app).await
+}
 
 pub async fn spawn_server(
     state: &ServerState,
     app: &AppHandle,
 ) -> Result<String, String> {
-    // 1. 检查 venv
     let python_path = &state.python_path;
     if !std::path::Path::new(python_path).exists() {
         *state.status.lock().unwrap() = "error".to_string();
@@ -925,26 +1002,21 @@ pub async fn spawn_server(
         return Err("Python 环境未找到".to_string());
     }
 
-    // 2. 检查是否有已运行的进程
     {
-        let mut child = state.child.lock().unwrap();
+        let child = state.child.lock().unwrap();
         if child.is_some() {
             return Err("服务已在运行".to_string());
         }
     }
 
-    // 3. 设置状态为 starting
     *state.status.lock().unwrap() = "starting".to_string();
     let _ = app.emit("server-status-changed", "starting");
 
-    // 4. 获取端口
     let port = *state.port.lock().unwrap();
 
-    // 5. 打开日志文件
     let log_file = File::create(&state.server_log_path)
         .map_err(|e| format!("无法创建日志文件: {}", e))?;
 
-    // 6. 启动子进程
     let child = Command::new(python_path)
         .arg("-m")
         .arg("openviking.server.bootstrap")
@@ -965,29 +1037,30 @@ pub async fn spawn_server(
 
     *state.child.lock().unwrap() = Some(child);
 
-    // 7. 异步轮询 health
-    let port = *state.port.lock().unwrap();
-    let app_clone = app.clone();
-    let state_ptr: *const ServerState = state as *const ServerState;
+    let health_port = *state.port.lock().unwrap();
+    let app_for_health = app.clone();
 
     tokio::spawn(async move {
-        let state_ref = unsafe { &*state_ptr };
-        let url = format!("http://127.0.0.1:{}/health", port);
+        let url = format!("http://127.0.0.1:{}/health", health_port);
         let client = reqwest::Client::new();
         let start = std::time::Instant::now();
         let timeout = std::time::Duration::from_secs(30);
 
         loop {
             if start.elapsed() > timeout {
-                *state_ref.status.lock().unwrap() = "timeout".to_string();
-                let _ = app_clone.emit("server-status-changed", "timeout");
+                if let Some(s) = app_for_health.try_state::<ServerState>() {
+                    *s.status.lock().unwrap() = "timeout".to_string();
+                }
+                let _ = app_for_health.emit("server-status-changed", "timeout");
                 break;
             }
 
             match client.get(&url).send().await {
                 Ok(resp) if resp.status().is_success() => {
-                    *state_ref.status.lock().unwrap() = "running".to_string();
-                    let _ = app_clone.emit("server-status-changed", "running");
+                    if let Some(s) = app_for_health.try_state::<ServerState>() {
+                        *s.status.lock().unwrap() = "running".to_string();
+                    }
+                    let _ = app_for_health.emit("server-status-changed", "running");
                     break;
                 }
                 _ => {
@@ -1016,15 +1089,17 @@ pub async fn stop_server(
 }
 ```
 
-注意：`ServerState` 指针传递使用 `unsafe` 是因为 `ServerState` 被 Tauri 管理，生命周期与 app 一致。这是 Tauri 的常见模式。
+关键差异：
+- **`spawn_server_with_app_handle`** — 新增便捷函数，从 AppHandle 中提取 ServerState
+- **`try_state` 代替 unsafe 指针** — health 轮询中使用 `try_state::{ServerState}()` 安全获取状态
 
-#### 12.4.4 tray.rs — 菜单栏托盘
+#### 12.4.5 tray.rs — 菜单栏托盘
 
 ```rust
 use tauri::{
-    AppHandle, Runtime,
+    AppHandle, Emitter, Manager, Runtime,
     menu::{MenuBuilder, MenuItemBuilder},
-    tray::{TrayIconBuilder, TrayIconEvent, MouseButton},
+    tray::{TrayIconBuilder, TrayIconEvent, MouseButton, MouseButtonState},
 };
 use log::info;
 
@@ -1044,11 +1119,11 @@ pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let _tray = TrayIconBuilder::with_id("main-tray")
         .menu(&menu)
         .tooltip("OpenViking")
+        .show_menu_on_left_click(false)
         .on_menu_event(move |app, event| {
             match event.id().as_ref() {
                 "toggle_server" => {
-                    // 通过 emit 通知前端切换服务状态
-                    let _ = app.emit("tray-toggle-server", true);
+                    let _ = app.emit::<bool>("tray-toggle-server", true);
                 }
                 "open_dashboard" => {
                     if let Some(window) = app.get_webview_window("dashboard") {
@@ -1057,22 +1132,18 @@ pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                     }
                 }
                 "quit" => {
-                    // 停止服务后退出
-                    if let Some(state) = app.try_state::<crate::ServerState>() {
-                        let mut child = state.child.lock().unwrap();
-                        if let Some(ref mut c) = *child {
-                            let _ = c.kill();
-                            let _ = c.wait();
-                        }
-                    }
+                    log::info!("Quit requested from tray menu");
                     app.exit(0);
                 }
                 _ => {}
             }
         })
         .on_tray_icon_event(|tray, event| {
-            if let TrayIconEvent::Click { button: MouseButton::Left, .. } = event {
-                // 左键单击：打开/隐藏仪表盘
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event {
                 if let Some(window) = tray.app_handle().get_webview_window("dashboard") {
                     if window.is_visible().unwrap_or(false) {
                         let _ = window.hide();
@@ -1090,40 +1161,18 @@ pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
 }
 ```
 
-### 12.5 前端代码骨架
+关键差异：
+- **`show_menu_on_left_click(false)`** — 左键不显示菜单，用于左键单击切换窗口
+- **`MouseButtonState::Up`** — 只在鼠标释放时触发，避免双击误触
+
+### 12.5 前端代码
 
 #### 12.5.1 api.ts — REST API 封装
 
 ```typescript
+import type { HealthResponse, DashboardSummary, MemoryStats, ApiResponse } from './types';
+
 const BASE_URL = 'http://127.0.0.1:1933';
-
-interface HealthResponse {
-  status: string;
-  healthy: boolean;
-  version: string;
-}
-
-interface DashboardSummary {
-  context_counts: {
-    files: number;
-    skills: number;
-    memories: number;
-    total: number;
-  };
-  today_tokens?: { input: number; output: number };
-  today_retrievals?: { count: number };
-}
-
-interface MemoryStats {
-  total_memories: number;
-  by_category: Record<string, number>;
-}
-
-interface ApiResponse<T> {
-  status: string;
-  result?: T;
-  error?: { code: string; message: string };
-}
 
 async function fetchApi<T>(path: string): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`);
@@ -1150,7 +1199,6 @@ export async function getDashboardSummary(): Promise<DashboardSummary | null> {
     const result = await fetchApi<DashboardSummary>('/api/v1/console/dashboard/summary');
     return result;
   } catch {
-    // usage/audit 未启用时返回 null，前端降级显示
     return null;
   }
 }
@@ -1160,14 +1208,90 @@ export async function getMemoryStats(): Promise<MemoryStats> {
 }
 ```
 
-#### 12.5.2 Dashboard.tsx — 仪表盘组件逻辑
+#### 12.5.2 types.ts — TypeScript 类型定义
+
+```typescript
+export interface HealthResponse {
+  status: string;
+  healthy: boolean;
+  version: string;
+}
+
+export interface DashboardSummary {
+  context_counts: {
+    files: number;
+    skills: number;
+    memories: number;
+    total: number;
+  };
+  today_tokens?: { input: number; output: number };
+  today_retrievals?: { count: number };
+}
+
+export interface MemoryStats {
+  total_memories: number;
+  by_category: Record<string, number>;
+}
+
+export interface ApiResponse<T> {
+  status: string;
+  result?: T;
+  error?: { code: string; message: string };
+}
+
+export interface OvConfig {
+  server: {
+    host: string;
+    port: number;
+    auth_mode?: string | null;
+    cors_origins?: string[];
+    observability?: {
+      metrics?: { enabled?: boolean };
+    };
+  };
+  storage: {
+    workspace: string;
+    vectordb: { backend: string };
+    agfs: { backend: string };
+  };
+  embedding: {
+    model: string;
+    base_url?: string | null;
+    api_key?: string | null;
+  };
+  llm: {
+    model: string;
+    base_url?: string | null;
+    api_key?: string | null;
+  };
+  vlm: {
+    model?: string | null;
+    base_url?: string | null;
+    api_key?: string | null;
+  };
+  retrieval: {
+    top_k: number;
+    threshold: number;
+  };
+  encryption: {
+    enabled: boolean;
+  };
+  log: {
+    level: string;
+  };
+}
+```
+
+#### 12.5.3 Dashboard.tsx — 仪表盘组件
 
 ```tsx
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { checkHealth, getDashboardSummary, getMemoryStats } from '../lib/api';
-import type { DashboardSummary, MemoryStats } from '../lib/types';
+import { checkHealth, getDashboardSummary, getMemoryStats } from '../../lib/api';
+import type { DashboardSummary, MemoryStats } from '../../lib/types';
+import StatusCard from './StatusCard';
+import StatsGrid from './StatsGrid';
 
 export default function Dashboard() {
   const [serverStatus, setServerStatus] = useState<string>('stopped');
@@ -1185,7 +1309,7 @@ export default function Dashboard() {
 
   // 初始加载：获取当前状态
   useEffect(() => {
-    invoke<string>('get_server_status').then(setServerStatus);
+    invoke<string>('get_server_status').then(setServerStatus).catch(() => {});
   }, []);
 
   // 服务运行时轮询数据
@@ -1196,10 +1320,8 @@ export default function Dashboard() {
       try {
         const health = await checkHealth();
         setVersion(health.version);
-
         const dashSummary = await getDashboardSummary();
         setSummary(dashSummary);
-
         const mem = await getMemoryStats();
         setMemStats(mem);
       } catch {
@@ -1212,7 +1334,6 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [serverStatus]);
 
-  // 启动/停止处理
   const handleToggleServer = async () => {
     try {
       if (serverStatus === 'running') {
@@ -1226,7 +1347,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <StatusCard
         status={serverStatus}
         version={version}
@@ -1246,56 +1367,74 @@ export default function Dashboard() {
 #!/usr/bin/env bash
 set -euo pipefail
 
-# bundle-python.sh — 将 OpenViking 的 Python venv 打包到 Tauri Resources 目录
+# bundle-python.sh — 创建全新 Python venv 并安装 openviking，打包到 resources 目录
 #
-# 用法：在 OpenViking 根目录执行
+# 用法：
 #   bash scripts/bundle-python.sh
-#
-# 前置条件：已在 OpenViking 根目录执行过 uv sync --frozen
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-TAURI_RESOURCES="$SCRIPT_DIR/../src-tauri/Resources/python"
+TAURI_RESOURCES="$SCRIPT_DIR/../resources/python"
 
-echo "=== 打包 Python venv 到 Tauri Resources ==="
-echo "项目根目录: $PROJECT_ROOT"
-echo "目标目录:   $TAURI_RESOURCES"
+echo "=== 打包 Python venv 到 resources ==="
+echo "项目根目录:   $PROJECT_ROOT"
+echo "目标目录:     $TAURI_RESOURCES"
 
-# 1. 检查 venv 是否存在
-if [ ! -d "$PROJECT_ROOT/.venv" ]; then
-    echo "错误: .venv 目录不存在，请先执行 uv sync --frozen"
-    exit 1
-fi
-
-# 2. 创建目标目录
+# 1. 创建目标目录（全新 venv）
 rm -rf "$TAURI_RESOURCES"
-mkdir -p "$TAURI_RESOURCES"
 
-# 3. 复制 venv（排除 __pycache__ 和 .pyc 文件以减小体积）
-echo "正在复制 venv（此操作可能需要几分钟）..."
-rsync -a --info=progress2 \
-    --exclude='__pycache__' \
-    --exclude='*.pyc' \
-    --exclude='*.pyo' \
-    "$PROJECT_ROOT/.venv/" "$TAURI_RESOURCES/"
+# 2. 用 uv 创建虚拟环境（Python 3.12）
+echo "正在创建虚拟环境..."
+uv venv --python 3.12 "$TAURI_RESOURCES"
+
+# 3. 安装 openviking 及其依赖（从 PyPI）
+echo "正在安装 openviking 及其依赖（此操作可能需要几分钟）..."
+uv pip install --python "$TAURI_RESOURCES" --quiet openviking
+
+# 4. 清理：删除 __pycache__、.pyc、.pyo 文件以减小体积
+echo "正在清理缓存文件..."
+find "$TAURI_RESOURCES" -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true
+find "$TAURI_RESOURCES" -type f -name '*.pyc' -delete
+find "$TAURI_RESOURCES" -type f -name '*.pyo' -delete
 
 echo "=== 打包完成 ==="
-echo "Python venv 已复制到: $TAURI_RESOURCES"
+echo "Python venv 已创建并安装 openviking 到: $TAURI_RESOURCES"
 ```
 
-### 12.7 实施步骤建议
+设计决策：
+- **使用 uv** 替代 `python3 -m venv`：Homebrew 的 Python 3.14 有 `libexpat` 兼容问题导致 `ensurepip` 失败，uv 独立管理 venv 创建，更稳定、更快
+- **从 PyPI 安装 openviking**：不依赖本地 OpenViking 源码目录，构建流程更简洁
+- **Python 3.12**：显式指定避免使用系统默认的 Python 3.14
+
+### 12.7 Resources 符号链接
+
+Tauri 的 `bundle.resources` 配置打包 `Resources/python/**/*` 目录。为在开发阶段也能访问 venv，需在 `src-tauri/Resources/` 下创建符号链接指向 `resources/python`：
+
+```bash
+cd src-tauri/Resources
+ln -s ../../resources/python python
+```
+
+这样 `tauri.conf.json` 中的 `resources: ["Resources/python/**/*"]` 在开发和生产阶段均有效：
+- **开发时**：符号链接 `Resources/python → ../../resources/python`
+- **打包时**：Tauri 解析符号链接，将目标目录内容复制到 app bundle
+
+### 12.8 实施步骤建议
 
 | 步骤 | 内容 | 验证方式 |
 |---|---|---|
 | 1 | 创建 Tauri 项目骨架：`pnpm create tauri-app` 选择 React + TypeScript | `pnpm tauri dev` 能看到窗口 |
 | 2 | 配置 `tauri.conf.json`（Section 12.1），设置窗口隐藏 + 托盘 | 窗口不可见但托盘图标出现 |
-| 3 | 实现 `process.rs` — spawn/stop Python server | 点击启动后 `curl localhost:1933/health` 返回 200 |
-| 4 | 实现 `tray.rs` — 托盘菜单 + 左键单击逻辑 | 托盘菜单可切换启停、打开仪表盘 |
-| 5 | 实现前端 `Dashboard.tsx` + `StatusCard.tsx` | 仪表盘正确显示服务状态 |
-| 6 | 实现前端 `StatsGrid.tsx` + `api.ts` | 仪表盘正确显示资源/记忆数量 |
-| 7 | 实现配置表单 `ConfigPage.tsx` + 4 个子 Tab | 保存后 `~/.openviking/ov.conf` 内容正确 |
-| 8 | 实现 `bundle-python.sh` + Tauri resources 打包 | `pnpm tauri build` 打包出 DMG |
-| 9 | DMG 安装测试：干净 macOS 环境安装运行 | 首次启动生成默认 ov.conf、服务正常启动 |
+| 3 | 创建 `resources/` 符号链接（Section 12.7） | `ls -la src-tauri/Resources/python` |
+| 4 | 实现 `bundle-python.sh`（Section 12.6），打包 venv | `bash scripts/bundle-python.sh` 运行成功 |
+| 5 | 实现 `process.rs` — spawn/stop Python server（Section 12.4.4） | 点击启动后 `curl localhost:1933/health` 返回 200 |
+| 6 | 实现 `tray.rs` — 托盘菜单 + 左键单击逻辑（Section 12.4.5） | 托盘菜单可切换启停、打开仪表盘 |
+| 7 | 实现 `lib.rs` — Python 路径三级降级 + 自动启动（Section 12.4.3） | 应用启动后服务自动运行 |
+| 8 | 实现前端 `Dashboard.tsx` + `StatusCard.tsx`（Section 12.5.3） | 仪表盘正确显示服务状态 |
+| 9 | 实现前端 `StatsGrid.tsx` + `api.ts` + `types.ts`（Section 12.5.1-2） | 仪表盘正确显示资源/记忆数量 |
+| 10 | 实现配置表单 `ConfigPage.tsx` + 4 个子 Tab | 保存后 `~/.openviking/ov.conf` 内容正确 |
+| 11 | DMG 构建测试：`pnpm tauri build` | 产物 `OpenViking_0.1.0_aarch64.dmg` 约 148MB |
+| 12 | DMG 安装测试：干净 macOS 环境安装运行 | 首次启动生成默认 ov.conf、服务正常启动 |
 
 ---
 
@@ -1304,9 +1443,10 @@ echo "Python venv 已复制到: $TAURI_RESOURCES"
 - [ ] 在无 Python 环境的 macOS 上安装 DMG 后能正常启动
 - [ ] 首次启动自动生成 `~/.openviking/ov.conf`
 - [ ] 菜单栏图标正确反映服务状态（彩色/灰色/闪烁）
+- [ ] 左键单击托盘图标切换仪表盘窗口显示/隐藏
 - [ ] 点击托盘菜单可启停服务
 - [ ] 关闭仪表盘窗口后应用仍在后台运行
 - [ ] 仪表盘正确显示健康状态、版本号、文件数、技能数、记忆数
 - [ ] 配置表单保存后重启服务生效
 - [ ] 端口被占用时给出明确错误提示
-- [ ] 退出应用时服务被正常终止
+- [ ] 应用退出时服务被正常终止

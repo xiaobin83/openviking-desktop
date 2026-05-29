@@ -1,0 +1,50 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-cli/schema.json",
+  "productName": "OpenViking",
+  "version": "0.1.0",
+  "identifier": "com.openviking.desktop",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm build",
+    "beforeDevCommand": "pnpm dev"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "dashboard",
+        "title": "OpenViking 仪表盘",
+        "width": 720,
+        "height": 560,
+        "visible": false,
+        "center": true,
+        "resizable": true,
+        "minWidth": 600,
+        "minHeight": 400
+      }
+    ],
+    "trayIcon": {
+      "id": "main-tray",
+      "iconPath": "icons/icon.png",
+      "tooltip": "OpenViking",
+      "iconAsTemplate": true
+    },
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "dmg",
+    "icon": [
+      "icons/icon.icns"
+    ],
+    "resources": [
+      "Resources/python/**/*"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "14.0"
+    }
+  }
+}
