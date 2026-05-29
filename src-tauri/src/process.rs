@@ -61,7 +61,10 @@ pub async fn spawn_server(
 
     tokio::spawn(async move {
         let url = format!("http://127.0.0.1:{}/health", health_port);
-        let client = reqwest::Client::new();
+        let client = reqwest::Client::builder()
+            .no_proxy()
+            .build()
+            .unwrap();
         let start = std::time::Instant::now();
         let timeout = std::time::Duration::from_secs(30);
 

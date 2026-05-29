@@ -291,13 +291,6 @@
 └── .gitignore
 ```
 
-项目根路径关系（相对于 openviking 工作区根目录）：
-```
-openviking/
-├── OpenViking/                 # openviking Python 包源码
-└── openviking-desktop/         # ← 本项目（Tauri 桌面应用）
-```
-
 ---
 
 ## 6. 数据流与 API 参考
@@ -609,7 +602,7 @@ OpenViking.app/
 | 架构模式 | Thin Shell / Proxy / Rust-First | Thin Shell | 最少 Rust 代码，最大复用现有 API |
 | 前端框架 | React / Vue / Svelte | React | Tauri 官方模板支持最好，生态最成熟 |
 | Python venv 工具 | python venv / uv / virtualenv | uv | 更快的创建速度，避免 Python 3.14 ensurepip 兼容问题 |
-| openviking 安装方式 | 源码 install / PyPI / 复制 .venv | PyPI pip install | 不依赖本地 OpenViking 源码，构建流程简洁 |
+| openviking 安装方式 | PyPI / 复制 .venv | PyPI pip install | 从 PyPI 安装，构建流程简洁 |
 
 ---
 
@@ -1403,7 +1396,7 @@ echo "Python venv 已创建并安装 openviking 到: $TAURI_RESOURCES"
 
 设计决策：
 - **使用 uv** 替代 `python3 -m venv`：Homebrew 的 Python 3.14 有 `libexpat` 兼容问题导致 `ensurepip` 失败，uv 独立管理 venv 创建，更稳定、更快
-- **从 PyPI 安装 openviking**：不依赖本地 OpenViking 源码目录，构建流程更简洁
+- **从 PyPI 安装 openviking**：构建流程简洁，无需额外构建步骤
 - **Python 3.12**：显式指定避免使用系统默认的 Python 3.14
 
 ### 12.7 Resources 符号链接
