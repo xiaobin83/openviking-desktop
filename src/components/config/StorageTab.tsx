@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { OvConfig } from '../../lib/types';
 
 interface StorageTabProps {
@@ -6,6 +7,7 @@ interface StorageTabProps {
 }
 
 export default function StorageTab({ config, onChange }: StorageTabProps) {
+  const { t } = useTranslation();
   const update = (path: string, value: string | boolean) => {
     const clone = structuredClone(config);
     const keys = path.split('.');
@@ -20,7 +22,7 @@ export default function StorageTab({ config, onChange }: StorageTabProps) {
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-text-secondary mb-1">向量数据库名称</label>
+        <label className="block text-sm font-medium text-text-secondary mb-1">{t('storage.vector_db_name')}</label>
         <input
           type="text"
           value={config.storage.vectordb.name ?? 'context'}
@@ -29,7 +31,7 @@ export default function StorageTab({ config, onChange }: StorageTabProps) {
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-text-secondary mb-1">向量数据库后端</label>
+        <label className="block text-sm font-medium text-text-secondary mb-1">{t('storage.vector_db_backend')}</label>
         <select
           value={config.storage.vectordb.backend}
           onChange={(e) => update('storage.vectordb.backend', e.target.value)}
@@ -41,7 +43,7 @@ export default function StorageTab({ config, onChange }: StorageTabProps) {
         </select>
       </div>
       <div>
-        <label className="block text-sm font-medium text-text-secondary mb-1">AGFS 存储后端</label>
+        <label className="block text-sm font-medium text-text-secondary mb-1">{t('storage.agfs_backend')}</label>
         <select
           value={config.storage.agfs.backend}
           onChange={(e) => update('storage.agfs.backend', e.target.value)}
@@ -52,7 +54,7 @@ export default function StorageTab({ config, onChange }: StorageTabProps) {
         </select>
       </div>
       <div className="flex items-center gap-3">
-        <label className="text-sm font-medium text-text-secondary">加密存储</label>
+        <label className="text-sm font-medium text-text-secondary">{t('storage.encryption')}</label>
         <button
           onClick={() => update('encryption.enabled', !(config.encryption?.enabled ?? false))}
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${

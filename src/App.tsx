@@ -1,16 +1,24 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Dashboard from './components/dashboard/Dashboard';
 import ConfigPage from './components/config/ConfigPage';
 
 type Tab = 'overview' | 'config';
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'overview', label: '概览' },
-  { key: 'config', label: '配置' },
-];
-
 function App() {
+  const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
+
+  const toggleLang = () => {
+    const next = i18n.language === 'zh' ? 'en' : 'zh';
+    i18n.changeLanguage(next);
+    localStorage.setItem('lang', next);
+  };
+
+  const TABS: { key: Tab; label: string }[] = [
+    { key: 'overview', label: t('tab.overview') },
+    { key: 'config', label: t('tab.config') },
+  ];
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-surface">
@@ -25,32 +33,40 @@ function App() {
             </div>
             <div>
               <h1 className="text-base font-bold tracking-tight text-text-primary">
-                OpenViking
+                {t('app.title')}
               </h1>
               <p className="text-[11px] font-medium tracking-wider text-text-muted">
-                控制面板
+                {t('app.subtitle')}
               </p>
             </div>
           </div>
 
-          <nav className="flex gap-1 rounded-lg bg-surface/50 p-1">
-            {TABS.map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setActiveTab(key)}
-                className={`relative rounded-md px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
-                  activeTab === key
-                    ? 'bg-aurora-500/15 text-aurora-400 shadow-sm'
-                    : 'text-text-muted hover:text-text-secondary'
-                }`}
-              >
-                {activeTab === key && (
-                  <span className="absolute inset-0 rounded-md border border-aurora-400/20" />
-                )}
-                <span className="relative z-10">{label}</span>
-              </button>
-            ))}
-          </nav>
+          <div className="flex items-center gap-3">
+            <nav className="flex gap-1 rounded-lg bg-surface/50 p-1">
+              {TABS.map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveTab(key)}
+                  className={`relative rounded-md px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
+                    activeTab === key
+                      ? 'bg-aurora-500/15 text-aurora-400 shadow-sm'
+                      : 'text-text-muted hover:text-text-secondary'
+                  }`}
+                >
+                  {activeTab === key && (
+                    <span className="absolute inset-0 rounded-md border border-aurora-400/20" />
+                  )}
+                  <span className="relative z-10">{label}</span>
+                </button>
+              ))}
+            </nav>
+            <button
+              onClick={toggleLang}
+              className="rounded-md px-2.5 py-1.5 text-xs font-medium text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors border border-border-subtle"
+            >
+              {i18n.language === 'zh' ? 'EN' : '中'}
+            </button>
+          </div>
         </div>
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-aurora-500/20 to-transparent" />
       </header>

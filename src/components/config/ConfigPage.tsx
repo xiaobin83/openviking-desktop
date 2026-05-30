@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import type { OvConfig } from '../../lib/types';
 import BasicTab from './BasicTab';
@@ -70,6 +71,7 @@ const DEFAULT_CONFIG: OvConfig = {
 };
 
 export default function ConfigPage() {
+  const { t } = useTranslation();
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('basic');
   const [config, setConfig] = useState<OvConfig>(DEFAULT_CONFIG);
   const [workspace, setWorkspace] = useState('');
@@ -83,7 +85,7 @@ export default function ConfigPage() {
           const parsed = JSON.parse(content) as OvConfig;
           setConfig(deepMerge(DEFAULT_CONFIG, parsed));
         } catch {
-          setError('配置格式错误');
+          setError(t('config.parse_error'));
         }
       })
       .catch(() => {
@@ -128,10 +130,10 @@ export default function ConfigPage() {
   };
 
   const SUB_TABS: { key: SubTab; label: string }[] = [
-    { key: 'basic', label: '基础' },
-    { key: 'ai', label: 'AI 模型' },
-    { key: 'storage', label: '存储' },
-    { key: 'advanced', label: '高级' },
+    { key: 'basic', label: t('config.subtab.basic') },
+    { key: 'ai', label: t('config.subtab.ai') },
+    { key: 'storage', label: t('config.subtab.storage') },
+    { key: 'advanced', label: t('config.subtab.advanced') },
   ];
 
   return (
@@ -163,7 +165,7 @@ export default function ConfigPage() {
             }}
             className="ml-3 underline hover:no-underline"
           >
-            重置为默认配置
+            {t('config.reset_to_default')}
           </button>
         </div>
       )}
@@ -185,11 +187,11 @@ export default function ConfigPage() {
           onClick={handleSave}
           className="px-5 py-2 bg-aurora-500/15 text-aurora-400 rounded-md text-sm font-medium hover:bg-aurora-500/25 transition-colors"
         >
-          保存配置
+          {t('config.save')}
         </button>
         {saved && (
           <span className="text-sm text-green-400">
-            配置已保存，需重启服务生效
+            {t('config.saved_tip')}
           </span>
         )}
       </div>

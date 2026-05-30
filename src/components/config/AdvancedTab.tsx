@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { OvConfig } from '../../lib/types';
 
 interface AdvancedTabProps {
@@ -8,6 +9,7 @@ interface AdvancedTabProps {
 type PathValue = string | number | boolean | string[];
 
 export default function AdvancedTab({ config, onChange }: AdvancedTabProps) {
+  const { t } = useTranslation();
   const update = (path: string, value: PathValue) => {
     const clone = structuredClone(config);
     const keys = path.split('.');
@@ -39,7 +41,7 @@ export default function AdvancedTab({ config, onChange }: AdvancedTabProps) {
     <div className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-text-secondary mb-1">
-          检索 Top-K
+          {t('advanced.top_k')}
         </label>
         <input
           type="number"
@@ -52,7 +54,7 @@ export default function AdvancedTab({ config, onChange }: AdvancedTabProps) {
       </div>
       <div>
         <label className="block text-sm font-medium text-text-secondary mb-1">
-          检索相似度阈值 ({config.retrieval?.threshold ?? 0.5})
+          {t('advanced.similarity_threshold')} ({config.retrieval?.threshold ?? 0.5})
         </label>
         <input
           type="range"
@@ -70,7 +72,7 @@ export default function AdvancedTab({ config, onChange }: AdvancedTabProps) {
         </div>
       </div>
       <div>
-        <label className="block text-sm font-medium text-text-secondary mb-1">CORS 允许来源</label>
+        <label className="block text-sm font-medium text-text-secondary mb-1">{t('advanced.cors_origins')}</label>
         <input
           type="text"
           value={(config.server.cors_origins ?? ['*']).join(', ')}
@@ -79,7 +81,7 @@ export default function AdvancedTab({ config, onChange }: AdvancedTabProps) {
         />
       </div>
       <div className="flex items-center gap-3">
-        <label className="text-sm font-medium text-text-secondary">启用可观测性</label>
+        <label className="text-sm font-medium text-text-secondary">{t('advanced.observability')}</label>
         <button
           onClick={toggleObservability}
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${

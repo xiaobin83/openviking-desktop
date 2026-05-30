@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { DashboardSummary, MemoryStats } from '../../lib/types';
 
 interface StatsGridProps {
@@ -6,10 +7,10 @@ interface StatsGridProps {
 }
 
 interface StatItem {
-  label: string;
+  labelKey: string;
   value: string | number;
   icon: string;
-  desc: string;
+  descKey: string;
 }
 
 const STAT_ICONS: Record<string, string> = {
@@ -22,43 +23,44 @@ const STAT_ICONS: Record<string, string> = {
 export default function StatsGrid({ summary, memStats }: StatsGridProps) {
   const items: StatItem[] = [
     {
-      label: '文件数',
+      labelKey: 'stats.files',
       value: summary?.context_counts.files ?? '—',
       icon: STAT_ICONS.files,
-      desc: '已索引的知识库文档',
+      descKey: 'stats.files_desc',
     },
     {
-      label: '技能数',
+      labelKey: 'stats.skills',
       value: summary?.context_counts.skills ?? '—',
       icon: STAT_ICONS.skills,
-      desc: '可调用的 AI 能力',
+      descKey: 'stats.skills_desc',
     },
     {
-      label: '记忆总数',
+      labelKey: 'stats.memories',
       value: memStats?.total_memories ?? summary?.context_counts.memories ?? '—',
       icon: STAT_ICONS.memories,
-      desc: '持久化记忆片段',
+      descKey: 'stats.memories_desc',
     },
     {
-      label: '今日 Token',
+      labelKey: 'stats.tokens',
       value: summary?.today_tokens
         ? `${(summary.today_tokens.input + summary.today_tokens.output).toLocaleString()}`
         : '—',
       icon: STAT_ICONS.tokens,
-      desc: '今日已消耗 Token 量',
+      descKey: 'stats.tokens_desc',
     },
   ];
 
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
       {items.map((item, i) => (
-        <StatCard key={item.label} item={item} index={i} />
+        <StatCard key={item.labelKey} item={item} index={i} />
       ))}
     </div>
   );
 }
 
 function StatCard({ item, index }: { item: StatItem; index: number }) {
+  const { t } = useTranslation();
   return (
     <div
       className="animate-slide-up group relative overflow-hidden rounded-2xl border border-border-subtle bg-surface-card/40 p-5 backdrop-blur-sm transition-all duration-300 hover:border-border-active hover:bg-surface-card/60 hover:shadow-lg hover:shadow-aurora-500/5"
@@ -86,8 +88,8 @@ function StatCard({ item, index }: { item: StatItem; index: number }) {
         <p className="mb-0.5 font-mono text-2xl font-semibold tracking-tight text-text-primary">
           {item.value}
         </p>
-        <p className="text-sm font-medium text-text-secondary">{item.label}</p>
-        <p className="mt-1 text-[11px] leading-tight text-text-muted">{item.desc}</p>
+        <p className="text-sm font-medium text-text-secondary">{t(item.labelKey)}</p>
+        <p className="mt-1 text-[11px] leading-tight text-text-muted">{t(item.descKey)}</p>
       </div>
     </div>
   );

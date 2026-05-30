@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { checkHealth, getDashboardSummary, getMemoryStats } from '../../lib/api';
@@ -7,6 +8,7 @@ import StatusCard from './StatusCard';
 import StatsGrid from './StatsGrid';
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const [serverStatus, setServerStatus] = useState<string>('stopped');
   const [version, setVersion] = useState<string>('');
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -60,7 +62,7 @@ export default function Dashboard() {
     <div className="space-y-5">
       <div className="animate-slide-up flex items-center gap-3">
         <div className="h-6 w-1 rounded-full bg-gradient-to-b from-aurora-400 to-aurora-600" />
-        <h2 className="text-lg font-bold tracking-tight text-text-primary">服务状态</h2>
+        <h2 className="text-lg font-bold tracking-tight text-text-primary">{t('dashboard.service_status')}</h2>
       </div>
       <StatusCard
         status={serverStatus}
@@ -71,7 +73,7 @@ export default function Dashboard() {
         <>
           <div className="animate-slide-up flex items-center gap-3" style={{ animationDelay: '150ms' }}>
             <div className="h-6 w-1 rounded-full bg-gradient-to-b from-aurora-400 to-aurora-600" />
-            <h2 className="text-lg font-bold tracking-tight text-text-primary">数据概览</h2>
+            <h2 className="text-lg font-bold tracking-tight text-text-primary">{t('dashboard.data_overview')}</h2>
           </div>
           <StatsGrid summary={summary} memStats={memStats} />
         </>

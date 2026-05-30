@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { OvConfig } from '../../lib/types';
 
 interface BasicTabProps {
@@ -8,6 +9,7 @@ interface BasicTabProps {
 }
 
 export default function BasicTab({ config, onChange, workspace, onWorkspaceChange }: BasicTabProps) {
+  const { t } = useTranslation();
   const update = (path: string, value: string | number) => {
     const clone = structuredClone(config);
     const keys = path.split('.');
@@ -22,20 +24,20 @@ export default function BasicTab({ config, onChange, workspace, onWorkspaceChang
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-text-secondary mb-1">工作空间</label>
+        <label className="block text-sm font-medium text-text-secondary mb-1">{t('basic.workspace')}</label>
         <input
           type="text"
           value={workspace}
           onChange={(e) => onWorkspaceChange(e.target.value)}
-          placeholder="例如: /Users/xxx/.openviking"
+          placeholder={t('basic.workspace_placeholder')}
           className="w-full px-3 py-2 bg-surface-elevated border border-border-subtle rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-aurora-500/50"
         />
         <p className="text-xs text-text-secondary mt-1">
-          设置工作空间目录后，配置将从该目录下的 ov.conf 读取/保存
+          {t('basic.workspace_hint')}
         </p>
       </div>
       <div>
-        <label className="block text-sm font-medium text-text-secondary mb-1">服务端口</label>
+        <label className="block text-sm font-medium text-text-secondary mb-1">{t('basic.server_port')}</label>
         <input
           type="number"
           value={config.server.port}
@@ -44,7 +46,7 @@ export default function BasicTab({ config, onChange, workspace, onWorkspaceChang
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-text-secondary mb-1">数据存储路径</label>
+        <label className="block text-sm font-medium text-text-secondary mb-1">{t('basic.storage_path')}</label>
         <input
           type="text"
           value={config.storage.workspace}
@@ -53,7 +55,7 @@ export default function BasicTab({ config, onChange, workspace, onWorkspaceChang
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-text-secondary mb-1">日志级别</label>
+        <label className="block text-sm font-medium text-text-secondary mb-1">{t('basic.log_level')}</label>
         <select
           value={config.log?.level ?? 'INFO'}
           onChange={(e) => update('log.level', e.target.value)}

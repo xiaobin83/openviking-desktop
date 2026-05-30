@@ -1,40 +1,42 @@
+import { useTranslation } from 'react-i18next';
+
 interface StatusCardProps {
   status: string;
   version: string;
   onToggle: () => void;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; dot: string; ring: string; badge: string; pulseColor: string }> = {
+const STATUS_CONFIG: Record<string, { labelKey: string; dot: string; ring: string; badge: string; pulseColor: string }> = {
   running: {
-    label: '服务运行中',
+    labelKey: 'status.running',
     dot: 'bg-green-400',
     ring: 'shadow-green-500/20',
     badge: 'bg-green-500/10 text-green-400 border-green-500/20',
     pulseColor: 'shadow-green-400/50',
   },
   stopped: {
-    label: '服务已停止',
+    labelKey: 'status.stopped',
     dot: 'bg-gray-500',
     ring: 'shadow-gray-500/10',
     badge: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
     pulseColor: 'shadow-gray-400/30',
   },
   starting: {
-    label: '服务启动中',
+    labelKey: 'status.starting',
     dot: 'bg-amber-400',
     ring: 'shadow-amber-500/20',
     badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
     pulseColor: 'shadow-amber-400/50',
   },
   error: {
-    label: '启动失败',
+    labelKey: 'status.error',
     dot: 'bg-red-400',
     ring: 'shadow-red-500/20',
     badge: 'bg-red-500/10 text-red-400 border-red-500/20',
     pulseColor: 'shadow-red-400/50',
   },
   timeout: {
-    label: '启动超时',
+    labelKey: 'status.timeout',
     dot: 'bg-red-400',
     ring: 'shadow-red-500/20',
     badge: 'bg-red-500/10 text-red-400 border-red-500/20',
@@ -43,6 +45,7 @@ const STATUS_CONFIG: Record<string, { label: string; dot: string; ring: string; 
 };
 
 export default function StatusCard({ status, version, onToggle }: StatusCardProps) {
+  const { t } = useTranslation();
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.stopped;
   const isStopped = status === 'stopped' || status === 'error' || status === 'timeout';
 
@@ -56,13 +59,13 @@ export default function StatusCard({ status, version, onToggle }: StatusCardProp
           </div>
           <div>
             <div className="flex items-center gap-2.5">
-              <p className="font-semibold text-text-primary">{cfg.label}</p>
+              <p className="font-semibold text-text-primary">{t(cfg.labelKey)}</p>
               <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${cfg.badge}`}>
                 {status.toUpperCase()}
               </span>
             </div>
             <p className="mt-0.5 font-mono text-xs text-text-muted">
-              {status === 'running' ? `v${version}` : '服务未运行'}
+              {status === 'running' ? `v${version}` : t('status.not_running')}
             </p>
           </div>
         </div>
@@ -75,7 +78,7 @@ export default function StatusCard({ status, version, onToggle }: StatusCardProp
                 : 'bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:shadow-lg hover:shadow-red-500/10'
             }`}
           >
-            <span className="relative z-10">{isStopped ? '启动服务' : '停止服务'}</span>
+            <span className="relative z-10">{isStopped ? t('status.start') : t('status.stop')}</span>
           </button>
         </div>
       </div>

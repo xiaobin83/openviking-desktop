@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { OvConfig, DenseEmbeddingConfig, VlmConfig } from '../../lib/types';
 
 interface AITabProps {
@@ -9,11 +10,12 @@ function DenseEmbeddingGroup({ dense, onChange }: {
   dense: DenseEmbeddingConfig;
   onChange: (path: string, value: string | number | boolean | undefined) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="border border-border-subtle rounded-lg bg-surface-card p-4 space-y-3">
-      <h3 className="text-sm font-semibold text-text-primary mb-2">嵌入模型 (Dense Embedding)</h3>
+      <h3 className="text-sm font-semibold text-text-primary mb-2">{t('ai.dense_embedding')}</h3>
       <div>
-        <label className="block text-sm text-text-secondary mb-1">Provider</label>
+        <label className="block text-sm text-text-secondary mb-1">{t('ai.provider')}</label>
         <input
           type="text"
           value={dense.provider ?? ''}
@@ -23,7 +25,7 @@ function DenseEmbeddingGroup({ dense, onChange }: {
         />
       </div>
       <div>
-        <label className="block text-sm text-text-secondary mb-1">API 基础地址 (api_base)</label>
+        <label className="block text-sm text-text-secondary mb-1">{t('ai.api_base')}</label>
         <input
           type="text"
           value={dense.api_base ?? ''}
@@ -32,7 +34,7 @@ function DenseEmbeddingGroup({ dense, onChange }: {
         />
       </div>
       <div>
-        <label className="block text-sm text-text-secondary mb-1">API 密钥</label>
+        <label className="block text-sm text-text-secondary mb-1">{t('ai.api_key')}</label>
         <input
           type="password"
           value={dense.api_key ?? ''}
@@ -41,7 +43,7 @@ function DenseEmbeddingGroup({ dense, onChange }: {
         />
       </div>
       <div>
-        <label className="block text-sm text-text-secondary mb-1">模型 (model)</label>
+        <label className="block text-sm text-text-secondary mb-1">{t('ai.model')}</label>
         <input
           type="text"
           value={dense.model ?? ''}
@@ -50,7 +52,7 @@ function DenseEmbeddingGroup({ dense, onChange }: {
         />
       </div>
       <div>
-        <label className="block text-sm text-text-secondary mb-1">向量维度 (dimension)</label>
+        <label className="block text-sm text-text-secondary mb-1">{t('ai.dimension')}</label>
         <input
           type="number"
           value={dense.dimension ?? ''}
@@ -59,13 +61,13 @@ function DenseEmbeddingGroup({ dense, onChange }: {
         />
       </div>
       <div>
-        <label className="block text-sm text-text-secondary mb-1">输入类型 (input)</label>
+        <label className="block text-sm text-text-secondary mb-1">{t('ai.input_type')}</label>
         <select
           value={dense.input ?? ''}
           onChange={(e) => onChange('embedding.dense.input', e.target.value || undefined)}
           className="w-full px-3 py-2 bg-surface-elevated border border-border-subtle rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-aurora-500/50"
         >
-          <option value="">自动</option>
+          <option value="">{t('ai.auto')}</option>
           <option value="text">text</option>
           <option value="multimodal">multimodal</option>
         </select>
@@ -78,11 +80,12 @@ function VlmGroup({ vlm, onChange }: {
   vlm: VlmConfig;
   onChange: (path: string, value: string | number | boolean | undefined) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="border border-border-subtle rounded-lg bg-surface-card p-4 space-y-3">
-      <h3 className="text-sm font-semibold text-text-primary mb-2">视觉语言模型 (VLM)</h3>
+      <h3 className="text-sm font-semibold text-text-primary mb-2">{t('ai.vlm')}</h3>
       <div>
-        <label className="block text-sm text-text-secondary mb-1">Provider</label>
+        <label className="block text-sm text-text-secondary mb-1">{t('ai.provider')}</label>
         <input
           type="text"
           value={vlm.provider ?? ''}
@@ -92,7 +95,7 @@ function VlmGroup({ vlm, onChange }: {
         />
       </div>
       <div>
-        <label className="block text-sm text-text-secondary mb-1">API 基础地址 (api_base)</label>
+        <label className="block text-sm text-text-secondary mb-1">{t('ai.api_base')}</label>
         <input
           type="text"
           value={vlm.api_base ?? ''}
@@ -101,7 +104,7 @@ function VlmGroup({ vlm, onChange }: {
         />
       </div>
       <div>
-        <label className="block text-sm text-text-secondary mb-1">API 密钥</label>
+        <label className="block text-sm text-text-secondary mb-1">{t('ai.api_key')}</label>
         <input
           type="password"
           value={vlm.api_key ?? ''}
@@ -110,7 +113,7 @@ function VlmGroup({ vlm, onChange }: {
         />
       </div>
       <div>
-        <label className="block text-sm text-text-secondary mb-1">模型 (model)</label>
+        <label className="block text-sm text-text-secondary mb-1">{t('ai.model')}</label>
         <input
           type="text"
           value={vlm.model ?? ''}
@@ -119,7 +122,7 @@ function VlmGroup({ vlm, onChange }: {
         />
       </div>
       <div>
-        <label className="block text-sm text-text-secondary mb-1">最大重试次数 (max_retries)</label>
+        <label className="block text-sm text-text-secondary mb-1">{t('ai.max_retries')}</label>
         <input
           type="number"
           value={vlm.max_retries ?? ''}
@@ -128,7 +131,7 @@ function VlmGroup({ vlm, onChange }: {
         />
       </div>
       <div className="flex items-center gap-3">
-        <label className="text-sm font-medium text-text-secondary">思考模式 (thinking)</label>
+        <label className="text-sm font-medium text-text-secondary">{t('ai.thinking')}</label>
         <button
           onClick={() => onChange('vlm.thinking', !vlm.thinking)}
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
