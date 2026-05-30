@@ -2,9 +2,14 @@ use tauri::Manager;
 use std::sync::Mutex;
 use std::process::Child;
 
-mod config;
 mod process;
 mod tray;
+
+const DEFAULT_OV_CONF_PATH: &str = ".openviking/ov.conf";
+
+fn get_home_dir() -> std::path::PathBuf {
+    dirs::home_dir().expect("no home dir")
+}
 
 pub struct ServerState {
     pub child: Mutex<Option<Child>>,
@@ -44,7 +49,7 @@ async fn stop_server(state: tauri::State<'_, ServerState>, app: tauri::AppHandle
 
 pub fn expand_tilde(path: &str) -> String {
     if path.starts_with("~/") || path == "~" {
-        let home = dirs::home_dir().expect("no home dir");
+        let home = get_home_dir();
         let trimmed = path.strip_prefix("~").unwrap_or("");
         home.join(trimmed.strip_prefix('/').unwrap_or(trimmed))
             .to_string_lossy()
@@ -57,8 +62,8 @@ pub fn expand_tilde(path: &str) -> String {
 pub fn get_ov_conf_path(state: &ServerState) -> String {
     let workspace = state.workspace_path.lock().unwrap().clone();
     if workspace.is_empty() {
-        let home = dirs::home_dir().expect("no home dir");
-        home.join(".openviking/ov.conf")
+        let home = get_home_dir();
+        home.join(DEFAULT_OV_CONF_PATH)
             .to_string_lossy()
             .to_string()
     } else {
@@ -81,8 +86,6 @@ async fn read_config(state: tauri::State<'_, ServerState>) -> Result<String, Str
 
 #[tauri::command]
 async fn write_config(state: tauri::State<'_, ServerState>, config: String) -> Result<String, String> {
-    serde_json::from_str::<config::OvConfig>(&config)
-        .map_err(|e| format!("配置格式无效: {}", e))?;
     let ov_conf_path = get_ov_conf_path(&state);
     if let Some(parent) = std::path::Path::new(&ov_conf_path).parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("创建目录失败: {}", e))?;
@@ -108,12 +111,7 @@ async fn set_workspace(app: tauri::AppHandle, state: tauri::State<'_, ServerStat
     let workspace_file = app_data_dir.join("workspace_path");
     std::fs::write(&workspace_file, &expanded).map_err(|e| format!("保存工作空间路径失败: {}", e))?;
 
-    let ov_conf = std::path::Path::new(&expanded).join("ov.conf");
-    if !ov_conf.exists() {
-        std::fs::create_dir_all(&expanded).map_err(|e| format!("创建工作空间目录失败: {}", e))?;
-        std::fs::write(&ov_conf, config::OvConfig::default().to_json_pretty())
-            .map_err(|e| format!("创建默认配置失败: {}", e))?;
-    }
+    std::fs::create_dir_all(&expanded).map_err(|e| format!("创建工作空间目录失败: {}", e))?;
 
     *state.workspace_path.lock().unwrap() = expanded;
 
@@ -155,7 +153,7 @@ pub fn run() {
             }.to_string_lossy().to_string();
             log::info!("Python path: {}", python_path);
 
-            let home = dirs::home_dir().expect("no home dir");
+            let home = get_home_dir();
             let server_log_path = home
                 .join("Library/Logs/OpenViking/server.log")
                 .to_string_lossy()
@@ -174,29 +172,15 @@ pub fn run() {
                     String::new()
                 }
             };
-
-            {
-                let ov_conf_path = if workspace_path.is_empty() {
-                    dirs::home_dir()
-                        .expect("no home dir")
-                        .join(".openviking/ov.conf")
-                } else {
-                    std::path::Path::new(&workspace_path).join("ov.conf")
-                };
-                if !ov_conf_path.exists() {
-                    if let Some(parent) = ov_conf_path.parent() {
-                        std::fs::create_dir_all(parent).ok();
-                    }
-                    std::fs::write(&ov_conf_path, config::OvConfig::default().to_json_pretty()).ok();
-                }
-            }
+            
+            let expanded_workspace_path = expand_tilde(&workspace_path);
 
             app.manage(ServerState {
                 child: Mutex::new(None),
                 status: Mutex::new("stopped".to_string()),
                 port: Mutex::new(1933),
                 python_path,
-                workspace_path: Mutex::new(workspace_path),
+                workspace_path: Mutex::new(expanded_workspace_path),
                 server_log_path,
             });
 

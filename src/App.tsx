@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { invoke } from '@tauri-apps/api/core';
+import { getDefaultConfigJson } from './lib/config-fields';
 import Dashboard from './components/dashboard/Dashboard';
 import ConfigPage from './components/config/ConfigPage';
 
@@ -8,6 +10,12 @@ type Tab = 'overview' | 'config';
 function App() {
   const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
+
+  useEffect(() => {
+    invoke<string>('read_config').catch(() => {
+      invoke('write_config', { config: getDefaultConfigJson() }).catch(() => {});
+    });
+  }, []);
 
   const toggleLang = () => {
     const next = i18n.language === 'zh' ? 'en' : 'zh';

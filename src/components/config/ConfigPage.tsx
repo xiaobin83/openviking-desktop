@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import type { OvConfig } from '../../lib/types';
+import { DEFAULT_CONFIG, getDefaultConfigJson } from '../../lib/config-fields';
 import BasicTab from './BasicTab';
 import AITab from './AITab';
 import StorageTab from './StorageTab';
 import AdvancedTab from './AdvancedTab';
+import FeishuTab from './FeishuTab';
 
-type SubTab = 'basic' | 'ai' | 'storage' | 'advanced';
+type SubTab = 'basic' | 'ai' | 'storage' | 'advanced' | 'feishu';
 
 function deepMerge<T>(target: T, source: Partial<T>): T {
   const result = { ...target };
@@ -32,43 +34,6 @@ function deepMerge<T>(target: T, source: Partial<T>): T {
   }
   return result;
 }
-
-const DEFAULT_CONFIG: OvConfig = {
-  server: { host: '127.0.0.1', port: 1933 },
-  storage: {
-    workspace: '~/.openviking/data',
-    vectordb: { name: 'context', backend: 'local' },
-    agfs: { backend: 'local' },
-  },
-  embedding: {
-    max_concurrent: 10,
-    max_retries: 3,
-    dense: {
-      dimension: 1024,
-      batch_size: 32,
-    },
-    circuit_breaker: {
-      failure_threshold: 5,
-      reset_timeout: 60,
-      max_reset_timeout: 600,
-    },
-  },
-  vlm: {
-    max_retries: 3,
-    max_concurrent: 100,
-    timeout: 60.0,
-    thinking: false,
-    stream: false,
-  },
-  retrieval: { top_k: 10, threshold: 0.5 },
-  encryption: { enabled: false },
-  log: { level: 'INFO' },
-  feishu: {
-    domain: 'https://open.feishu.cn',
-    max_rows_per_sheet: 1000,
-    max_records_per_table: 1000,
-  },
-};
 
 export default function ConfigPage() {
   const { t } = useTranslation();
@@ -111,6 +76,9 @@ export default function ConfigPage() {
     setWorkspace(newWorkspace);
     try {
       await invoke('set_workspace', { path: newWorkspace });
+      await invoke<string>('read_config').catch(() =>
+        invoke('write_config', { config: getDefaultConfigJson() })
+      );
       loadConfig();
     } catch (err) {
       setError(String(err));
@@ -134,6 +102,7 @@ export default function ConfigPage() {
     { key: 'ai', label: t('config.subtab.ai') },
     { key: 'storage', label: t('config.subtab.storage') },
     { key: 'advanced', label: t('config.subtab.advanced') },
+    { key: 'feishu', label: t('config.subtab.feishu') },
   ];
 
   return (
@@ -181,6 +150,7 @@ export default function ConfigPage() {
       {activeSubTab === 'ai' && <AITab config={config} onChange={setConfig} />}
       {activeSubTab === 'storage' && <StorageTab config={config} onChange={setConfig} />}
       {activeSubTab === 'advanced' && <AdvancedTab config={config} onChange={setConfig} />}
+      {activeSubTab === 'feishu' && <FeishuTab config={config} onChange={setConfig} />}
 
       <div className="pt-4 border-t border-border-subtle flex items-center gap-3">
         <button

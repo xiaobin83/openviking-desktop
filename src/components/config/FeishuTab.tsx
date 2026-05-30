@@ -3,16 +3,14 @@ import type { OvConfig } from '../../lib/types';
 import { getFieldsByTab } from '../../lib/config-fields';
 import ConfigFieldRenderer, { updateConfig } from './ConfigField';
 
-interface BasicTabProps {
+interface FeishuTabProps {
   config: OvConfig;
   onChange: (config: OvConfig) => void;
-  workspace: string;
-  onWorkspaceChange: (workspace: string) => void;
 }
 
-export default function BasicTab({ config, onChange, workspace, onWorkspaceChange }: BasicTabProps) {
+export default function FeishuTab({ config, onChange }: FeishuTabProps) {
   const { t } = useTranslation();
-  const fields = getFieldsByTab('basic');
+  const fields = getFieldsByTab('feishu');
 
   const handleChange = (path: string, value: unknown) => {
     onChange(updateConfig(config, path, value));
@@ -20,19 +18,7 @@ export default function BasicTab({ config, onChange, workspace, onWorkspaceChang
 
   return (
     <div className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-text-secondary mb-1">{t('basic.workspace')}</label>
-        <input
-          type="text"
-          value={workspace}
-          onChange={(e) => onWorkspaceChange(e.target.value)}
-          placeholder={t('basic.workspace_placeholder')}
-          className="w-full px-3 py-2 bg-surface-elevated border border-border-subtle rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-aurora-500/50"
-        />
-        <p className="text-xs text-text-secondary mt-1">
-          {t('basic.workspace_hint')}
-        </p>
-      </div>
+      <p className="text-sm text-text-secondary mb-2">{t('feishu.tab_hint')}</p>
       {fields.map((field) => {
         const keys = field.path.split('.');
         let value: unknown = config;
