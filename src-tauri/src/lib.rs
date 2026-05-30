@@ -81,9 +81,15 @@ async fn read_config(state: tauri::State<'_, ServerState>) -> Result<String, Str
 
 #[tauri::command]
 async fn write_config(state: tauri::State<'_, ServerState>, config: String) -> Result<String, String> {
+    serde_json::from_str::<config::OvConfig>(&config)
+        .map_err(|e| format!("配置格式无效: {}", e))?;
     let ov_conf_path = get_ov_conf_path(&state);
     if let Some(parent) = std::path::Path::new(&ov_conf_path).parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("创建目录失败: {}", e))?;
+    }
+    let bak_path = format!("{}.bak", ov_conf_path);
+    if std::path::Path::new(&ov_conf_path).exists() {
+        std::fs::rename(&ov_conf_path, &bak_path).ok();
     }
     std::fs::write(&ov_conf_path, &config).map_err(|e| format!("写入配置失败: {}", e))?;
     Ok("ok".to_string())

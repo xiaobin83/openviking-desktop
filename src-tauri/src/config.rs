@@ -1,43 +1,43 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ServerConfig {
     pub host: String,
     pub port: u16,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct VectordbConfig {
     pub name: String,
     pub backend: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct AgfsConfig {
     pub backend: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct StorageConfig {
     pub workspace: String,
     pub vectordb: VectordbConfig,
     pub agfs: AgfsConfig,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct DenseEmbeddingConfig {
     pub dimension: u32,
     pub batch_size: u32,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct CircuitBreakerConfig {
     pub failure_threshold: u32,
     pub reset_timeout: u32,
     pub max_reset_timeout: u32,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct EmbeddingConfig {
     pub max_concurrent: u32,
     pub max_retries: u32,
@@ -45,7 +45,7 @@ pub struct EmbeddingConfig {
     pub circuit_breaker: CircuitBreakerConfig,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct VlmConfig {
     pub max_retries: u32,
     pub max_concurrent: u32,
@@ -54,30 +54,30 @@ pub struct VlmConfig {
     pub stream: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct RetrievalConfig {
     pub top_k: u32,
     pub threshold: f64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct EncryptionConfig {
     pub enabled: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct LogConfig {
     pub level: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct FeishuConfig {
     pub domain: String,
     pub max_rows_per_sheet: u32,
     pub max_records_per_table: u32,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct OvConfig {
     pub server: ServerConfig,
     pub storage: StorageConfig,

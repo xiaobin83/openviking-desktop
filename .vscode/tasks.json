@@ -1,0 +1,60 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "start:dev:frontend",
+			"type": "npm",
+			"script": "dev",
+			"isBackground": true,
+			"problemMatcher": {
+				"pattern": {
+					"regexp": "^.*$"
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "VITE.*",
+					"endsPattern": "Local:"
+				}
+			},
+			"presentation": {
+				"group": "tauri",
+				"reveal": "always",
+				"panel": "new"
+			}
+		},
+		{
+			"label": "build:rust:debug",
+			"type": "cargo",
+			"command": "build",
+			"args": [
+				"--manifest-path",
+				"${workspaceFolder}/src-tauri/Cargo.toml"
+			],
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"presentation": {
+				"group": "tauri",
+				"reveal": "always",
+				"panel": "new"
+			}
+		},
+		{
+			"label": "start:tauri:dev",
+			"dependsOn": [
+				"start:dev:frontend",
+				"build:rust:debug"
+			],
+			"dependsOrder": "parallel",
+			"presentation": {
+				"group": "tauri",
+				"reveal": "always",
+				"panel": "new"
+			}
+		}
+	]
+}

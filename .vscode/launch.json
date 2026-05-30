@@ -1,0 +1,17 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Debug Tauri (Rust + 前端)",
+			"type": "lldb",
+			"request": "launch",
+			"program": "${workspaceFolder}/src-tauri/target/debug/openviking-desktop",
+			"args": [],
+			"cwd": "${workspaceFolder}",
+			"sourceLanguages": [
+				"rust"
+			],
+			"preLaunchTask": "start:tauri:dev"
+		}
+	]
+}
