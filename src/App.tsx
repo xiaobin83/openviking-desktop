@@ -13,8 +13,8 @@ function App() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
 
   return (
-    <div className="min-h-screen bg-surface">
-      <header className="relative border-b border-border-subtle bg-surface-elevated/80 backdrop-blur-xl">
+    <div className="h-screen flex flex-col overflow-hidden bg-surface">
+      <header className="flex-shrink-0 border-b border-border-subtle bg-surface-elevated/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-aurora-400 to-aurora-600 shadow-lg shadow-aurora-500/20">
@@ -55,8 +55,10 @@ function App() {
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-aurora-500/20 to-transparent" />
       </header>
 
-      <main className="mx-auto max-w-7xl p-6">
-        {activeTab === 'overview' ? <Dashboard /> : <ConfigPage />}
+      <main className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-7xl p-6">
+          {activeTab === 'overview' ? <Dashboard /> : <ConfigPage />}
+        </div>
       </main>
     </div>
   );

@@ -14,33 +14,33 @@ function ModelGroup({ title, prefix, model, baseUrl, apiKey, onChange }: {
   onChange: (path: string, value: string) => void;
 }) {
   return (
-    <div className="border border-gray-200 rounded-lg p-4 space-y-3">
-      <h3 className="text-sm font-semibold text-gray-900 mb-2">{title}</h3>
+    <div className="border border-border-subtle rounded-lg bg-surface-card p-4 space-y-3">
+      <h3 className="text-sm font-semibold text-text-primary mb-2">{title}</h3>
       <div>
-        <label className="block text-sm text-gray-600 mb-1">模型</label>
+        <label className="block text-sm text-text-secondary mb-1">模型</label>
         <input
           type="text"
           value={model}
           onChange={(e) => onChange(`${prefix}.model`, e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full px-3 py-2 bg-surface-elevated border border-border-subtle rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-aurora-500/50"
         />
       </div>
       <div>
-        <label className="block text-sm text-gray-600 mb-1">API 基础地址</label>
+        <label className="block text-sm text-text-secondary mb-1">API 基础地址</label>
         <input
           type="text"
           value={baseUrl}
           onChange={(e) => onChange(`${prefix}.base_url`, e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full px-3 py-2 bg-surface-elevated border border-border-subtle rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-aurora-500/50"
         />
       </div>
       <div>
-        <label className="block text-sm text-gray-600 mb-1">API 密钥</label>
+        <label className="block text-sm text-text-secondary mb-1">API 密钥</label>
         <input
           type="password"
           value={apiKey}
           onChange={(e) => onChange(`${prefix}.api_key`, e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full px-3 py-2 bg-surface-elevated border border-border-subtle rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-aurora-500/50"
         />
       </div>
     </div>

@@ -20,11 +20,11 @@ export default function StorageTab({ config, onChange }: StorageTabProps) {
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">向量数据库后端</label>
+        <label className="block text-sm font-medium text-text-secondary mb-1">向量数据库后端</label>
         <select
           value={config.storage.vectordb.backend}
           onChange={(e) => update('storage.vectordb.backend', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full px-3 py-2 bg-surface-elevated border border-border-subtle rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-aurora-500/50"
         >
           <option value="local">local</option>
           <option value="chroma">chroma</option>
@@ -32,22 +32,22 @@ export default function StorageTab({ config, onChange }: StorageTabProps) {
         </select>
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">AGFS 存储后端</label>
+        <label className="block text-sm font-medium text-text-secondary mb-1">AGFS 存储后端</label>
         <select
           value={config.storage.agfs.backend}
           onChange={(e) => update('storage.agfs.backend', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full px-3 py-2 bg-surface-elevated border border-border-subtle rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-aurora-500/50"
         >
           <option value="local">local</option>
           <option value="s3">s3</option>
         </select>
       </div>
       <div className="flex items-center gap-3">
-        <label className="text-sm font-medium text-gray-700">加密存储</label>
+        <label className="text-sm font-medium text-text-secondary">加密存储</label>
         <button
           onClick={() => update('encryption.enabled', !config.encryption.enabled)}
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-            config.encryption.enabled ? 'bg-indigo-600' : 'bg-gray-300'
+            config.encryption.enabled ? 'bg-aurora-500' : 'bg-text-muted/30'
           }`}
         >
           <span

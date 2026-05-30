@@ -38,7 +38,7 @@ export default function AdvancedTab({ config, onChange }: AdvancedTabProps) {
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-text-secondary mb-1">
           检索 Top-K
         </label>
         <input
@@ -47,11 +47,11 @@ export default function AdvancedTab({ config, onChange }: AdvancedTabProps) {
           onChange={(e) => update('retrieval.top_k', parseInt(e.target.value) || 10)}
           min={1}
           max={100}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full px-3 py-2 bg-surface-elevated border border-border-subtle rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-aurora-500/50"
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-text-secondary mb-1">
           检索相似度阈值 ({config.retrieval.threshold})
         </label>
         <input
@@ -61,29 +61,29 @@ export default function AdvancedTab({ config, onChange }: AdvancedTabProps) {
           step="0.05"
           value={config.retrieval.threshold}
           onChange={(e) => update('retrieval.threshold', parseFloat(e.target.value))}
-          className="w-full accent-indigo-600"
+          className="w-full accent-aurora-500"
         />
-        <div className="flex justify-between text-xs text-gray-400 mt-1">
+        <div className="flex justify-between text-xs text-text-muted mt-1">
           <span>0</span>
           <span>0.5</span>
           <span>1</span>
         </div>
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">CORS 允许来源</label>
+        <label className="block text-sm font-medium text-text-secondary mb-1">CORS 允许来源</label>
         <input
           type="text"
           value={(config.server.cors_origins ?? ['*']).join(', ')}
           onChange={(e) => update('server.cors_origins', e.target.value.split(',').map(s => s.trim()))}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full px-3 py-2 bg-surface-elevated border border-border-subtle rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-aurora-500/50"
         />
       </div>
       <div className="flex items-center gap-3">
-        <label className="text-sm font-medium text-gray-700">启用可观测性</label>
+        <label className="text-sm font-medium text-text-secondary">启用可观测性</label>
         <button
           onClick={toggleObservability}
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-            isObservabilityEnabled ? 'bg-indigo-600' : 'bg-gray-300'
+            isObservabilityEnabled ? 'bg-aurora-500' : 'bg-text-muted/30'
           }`}
         >
           <span

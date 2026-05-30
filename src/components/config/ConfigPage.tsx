@@ -83,15 +83,15 @@ export default function ConfigPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-1 border-b border-gray-200 pb-3">
+      <div className="flex gap-1 border-b border-border-subtle pb-3">
         {SUB_TABS.map(({ key, label }) => (
           <button
             key={key}
             onClick={() => setActiveSubTab(key)}
             className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
               activeSubTab === key
-                ? 'bg-indigo-600 text-white'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                ? 'bg-aurora-500/15 text-aurora-400'
+                : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover'
             }`}
           >
             {label}
@@ -100,7 +100,7 @@ export default function ConfigPage() {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-md px-4 py-3 text-sm text-red-700">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-md px-4 py-3 text-sm text-red-400">
           {error}
           <button
             onClick={async () => {
@@ -120,15 +120,15 @@ export default function ConfigPage() {
       {activeSubTab === 'storage' && <StorageTab config={config} onChange={setConfig} />}
       {activeSubTab === 'advanced' && <AdvancedTab config={config} onChange={setConfig} />}
 
-      <div className="pt-4 border-t border-gray-200 flex items-center gap-3">
+      <div className="pt-4 border-t border-border-subtle flex items-center gap-3">
         <button
           onClick={handleSave}
-          className="px-5 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors"
+          className="px-5 py-2 bg-aurora-500/15 text-aurora-400 rounded-md text-sm font-medium hover:bg-aurora-500/25 transition-colors"
         >
           保存配置
         </button>
         {saved && (
-          <span className="text-sm text-green-600">
+          <span className="text-sm text-green-400">
             配置已保存，需重启服务生效
           </span>
         )}
