@@ -24,12 +24,6 @@
         "minHeight": 400
       }
     ],
-    "trayIcon": {
-      "id": "main-tray",
-      "iconPath": "icons/icon.png",
-      "tooltip": "OpenViking",
-      "iconAsTemplate": true
-    },
     "security": {
       "csp": null
     }

@@ -2,6 +2,7 @@ use tauri::Manager;
 use std::sync::Mutex;
 use std::process::Child;
 
+mod config;
 mod process;
 mod tray;
 
@@ -10,7 +11,7 @@ pub struct ServerState {
     pub status: Mutex<String>,
     pub port: Mutex<u16>,
     pub python_path: String,
-    pub ov_conf_path: String,
+    pub workspace_path: Mutex<String>,
     pub server_log_path: String,
 }
 
@@ -41,10 +42,38 @@ async fn stop_server(state: tauri::State<'_, ServerState>, app: tauri::AppHandle
     process::stop_server(&state, &app).await
 }
 
+pub fn expand_tilde(path: &str) -> String {
+    if path.starts_with("~/") || path == "~" {
+        let home = dirs::home_dir().expect("no home dir");
+        let trimmed = path.strip_prefix("~").unwrap_or("");
+        home.join(trimmed.strip_prefix('/').unwrap_or(trimmed))
+            .to_string_lossy()
+            .to_string()
+    } else {
+        path.to_string()
+    }
+}
+
+pub fn get_ov_conf_path(state: &ServerState) -> String {
+    let workspace = state.workspace_path.lock().unwrap().clone();
+    if workspace.is_empty() {
+        let home = dirs::home_dir().expect("no home dir");
+        home.join(".openviking/ov.conf")
+            .to_string_lossy()
+            .to_string()
+    } else {
+        let expanded = expand_tilde(&workspace);
+        std::path::Path::new(&expanded)
+            .join("ov.conf")
+            .to_string_lossy()
+            .to_string()
+    }
+}
+
 #[tauri::command]
 async fn read_config(state: tauri::State<'_, ServerState>) -> Result<String, String> {
-    let path = &state.ov_conf_path;
-    match std::fs::read_to_string(path) {
+    let ov_conf_path = get_ov_conf_path(&state);
+    match std::fs::read_to_string(&ov_conf_path) {
         Ok(content) => Ok(content),
         Err(e) => Err(format!("读取配置失败: {}", e)),
     }
@@ -52,11 +81,36 @@ async fn read_config(state: tauri::State<'_, ServerState>) -> Result<String, Str
 
 #[tauri::command]
 async fn write_config(state: tauri::State<'_, ServerState>, config: String) -> Result<String, String> {
-    let path = &state.ov_conf_path;
-    if let Some(parent) = std::path::Path::new(path).parent() {
+    let ov_conf_path = get_ov_conf_path(&state);
+    if let Some(parent) = std::path::Path::new(&ov_conf_path).parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("创建目录失败: {}", e))?;
     }
-    std::fs::write(path, &config).map_err(|e| format!("写入配置失败: {}", e))?;
+    std::fs::write(&ov_conf_path, &config).map_err(|e| format!("写入配置失败: {}", e))?;
+    Ok("ok".to_string())
+}
+
+#[tauri::command]
+async fn get_workspace(state: tauri::State<'_, ServerState>) -> Result<String, String> {
+    Ok(state.workspace_path.lock().unwrap().clone())
+}
+
+#[tauri::command]
+async fn set_workspace(app: tauri::AppHandle, state: tauri::State<'_, ServerState>, path: String) -> Result<String, String> {
+    let expanded = expand_tilde(&path);
+    let app_data_dir = app.path().app_data_dir().map_err(|e| format!("获取应用数据目录失败: {}", e))?;
+    std::fs::create_dir_all(&app_data_dir).map_err(|e| format!("创建应用数据目录失败: {}", e))?;
+    let workspace_file = app_data_dir.join("workspace_path");
+    std::fs::write(&workspace_file, &expanded).map_err(|e| format!("保存工作空间路径失败: {}", e))?;
+
+    let ov_conf = std::path::Path::new(&expanded).join("ov.conf");
+    if !ov_conf.exists() {
+        std::fs::create_dir_all(&expanded).map_err(|e| format!("创建工作空间目录失败: {}", e))?;
+        std::fs::write(&ov_conf, config::OvConfig::default().to_json_pretty())
+            .map_err(|e| format!("创建默认配置失败: {}", e))?;
+    }
+
+    *state.workspace_path.lock().unwrap() = expanded;
+
     Ok("ok".to_string())
 }
 
@@ -96,10 +150,6 @@ pub fn run() {
             log::info!("Python path: {}", python_path);
 
             let home = dirs::home_dir().expect("no home dir");
-            let ov_conf_path = home
-                .join(".openviking/ov.conf")
-                .to_string_lossy()
-                .to_string();
             let server_log_path = home
                 .join("Library/Logs/OpenViking/server.log")
                 .to_string_lossy()
@@ -109,31 +159,42 @@ pub fn run() {
                 std::fs::create_dir_all(parent).ok();
             }
 
+            let app_data_dir = app.path().app_data_dir().expect("no app data dir");
+            let workspace_path = {
+                let ws_file = app_data_dir.join("workspace_path");
+                if ws_file.exists() {
+                    std::fs::read_to_string(&ws_file).unwrap_or_default()
+                } else {
+                    String::new()
+                }
+            };
+
+            {
+                let ov_conf_path = if workspace_path.is_empty() {
+                    dirs::home_dir()
+                        .expect("no home dir")
+                        .join(".openviking/ov.conf")
+                } else {
+                    std::path::Path::new(&workspace_path).join("ov.conf")
+                };
+                if !ov_conf_path.exists() {
+                    if let Some(parent) = ov_conf_path.parent() {
+                        std::fs::create_dir_all(parent).ok();
+                    }
+                    std::fs::write(&ov_conf_path, config::OvConfig::default().to_json_pretty()).ok();
+                }
+            }
+
             app.manage(ServerState {
                 child: Mutex::new(None),
                 status: Mutex::new("stopped".to_string()),
                 port: Mutex::new(1933),
                 python_path,
-                ov_conf_path,
+                workspace_path: Mutex::new(workspace_path),
                 server_log_path,
             });
 
             tray::create_tray(app.handle())?;
-
-            let state = app.state::<ServerState>();
-            let conf_path = state.ov_conf_path.clone();
-            if !std::path::Path::new(&conf_path).exists() {
-                let default_config = r#"{
-  "server": { "host": "127.0.0.1", "port": 1933 },
-  "storage": { "workspace": "~/.openviking/data", "vectordb": { "backend": "local" }, "agfs": { "backend": "local" } },
-  "embedding": { "model": "doubao-embedding-large" },
-  "llm": { "model": "openai/gpt-4o" },
-  "retrieval": { "top_k": 10, "threshold": 0.5 },
-  "encryption": { "enabled": false },
-  "log": { "level": "INFO" }
-}"#;
-                std::fs::write(&conf_path, default_config).ok();
-            }
 
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
@@ -150,6 +211,8 @@ pub fn run() {
             stop_server,
             read_config,
             write_config,
+            get_workspace,
+            set_workspace,
             read_server_log,
         ])
         .on_window_event(|window, event| {
@@ -163,16 +226,25 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app_handle, event| {
-            if let tauri::RunEvent::Exit = event {
-                if let Some(state) = app_handle.try_state::<ServerState>() {
-                    let mut child_opt = state.child.lock().unwrap();
-                    if let Some(ref mut c) = *child_opt {
-                        log::info!("Killing openviking-server on RunEvent::Exit");
-                        let _ = c.kill();
-                        let _ = c.wait();
+            match event {
+                tauri::RunEvent::Reopen { .. } => {
+                    if let Some(window) = app_handle.get_webview_window("dashboard") {
+                        let _ = window.show();
+                        let _ = window.set_focus();
                     }
-                    *child_opt = None;
                 }
+                tauri::RunEvent::Exit => {
+                    if let Some(state) = app_handle.try_state::<ServerState>() {
+                        let mut child_opt = state.child.lock().unwrap();
+                        if let Some(ref mut c) = *child_opt {
+                            log::info!("Killing openviking-server on RunEvent::Exit");
+                            let _ = c.kill();
+                            let _ = c.wait();
+                        }
+                        *child_opt = None;
+                    }
+                }
+                _ => {}
             }
         });
 }

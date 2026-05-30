@@ -34,22 +34,49 @@ function deepMerge<T>(target: T, source: Partial<T>): T {
 
 const DEFAULT_CONFIG: OvConfig = {
   server: { host: '127.0.0.1', port: 1933 },
-  storage: { workspace: '~/.openviking/data', vectordb: { backend: 'local' }, agfs: { backend: 'local' } },
-  embedding: { model: 'doubao-embedding-large' },
-  llm: { model: 'openai/gpt-4o' },
-  vlm: {},
+  storage: {
+    workspace: '~/.openviking/data',
+    vectordb: { name: 'context', backend: 'local' },
+    agfs: { backend: 'local' },
+  },
+  embedding: {
+    max_concurrent: 10,
+    max_retries: 3,
+    dense: {
+      dimension: 1024,
+      batch_size: 32,
+    },
+    circuit_breaker: {
+      failure_threshold: 5,
+      reset_timeout: 60,
+      max_reset_timeout: 600,
+    },
+  },
+  vlm: {
+    max_retries: 3,
+    max_concurrent: 100,
+    timeout: 60.0,
+    thinking: false,
+    stream: false,
+  },
   retrieval: { top_k: 10, threshold: 0.5 },
   encryption: { enabled: false },
   log: { level: 'INFO' },
+  feishu: {
+    domain: 'https://open.feishu.cn',
+    max_rows_per_sheet: 1000,
+    max_records_per_table: 1000,
+  },
 };
 
 export default function ConfigPage() {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('basic');
   const [config, setConfig] = useState<OvConfig>(DEFAULT_CONFIG);
+  const [workspace, setWorkspace] = useState('');
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  const loadConfig = () => {
     invoke<string>('read_config')
       .then((content) => {
         try {
@@ -59,8 +86,34 @@ export default function ConfigPage() {
           setError('配置格式错误');
         }
       })
-      .catch(() => setError('读取配置失败'));
+      .catch(() => {
+        /* no workspace yet or config not found */
+      });
+  };
+
+  useEffect(() => {
+    invoke<string>('get_workspace')
+      .then((ws) => {
+        setWorkspace(ws);
+      })
+      .catch(() => {
+        /* workspace not set, use default */;
+      })
+      .finally(() => {
+        loadConfig();
+      });
   }, []);
+
+  const handleWorkspaceChange = async (newWorkspace: string) => {
+    setError('');
+    setWorkspace(newWorkspace);
+    try {
+      await invoke('set_workspace', { path: newWorkspace });
+      loadConfig();
+    } catch (err) {
+      setError(String(err));
+    }
+  };
 
   const handleSave = async () => {
     setError('');
@@ -115,7 +168,14 @@ export default function ConfigPage() {
         </div>
       )}
 
-      {activeSubTab === 'basic' && <BasicTab config={config} onChange={setConfig} />}
+      {activeSubTab === 'basic' && (
+        <BasicTab
+          config={config}
+          onChange={setConfig}
+          workspace={workspace}
+          onWorkspaceChange={handleWorkspaceChange}
+        />
+      )}
       {activeSubTab === 'ai' && <AITab config={config} onChange={setConfig} />}
       {activeSubTab === 'storage' && <StorageTab config={config} onChange={setConfig} />}
       {activeSubTab === 'advanced' && <AdvancedTab config={config} onChange={setConfig} />}

@@ -1,7 +1,7 @@
 use std::process::{Command, Stdio};
 use std::fs::File;
 use tauri::{AppHandle, Emitter, Manager};
-use crate::ServerState;
+use crate::{get_ov_conf_path, ServerState};
 
 pub async fn spawn_server_with_app_handle(
     app: &AppHandle,
@@ -44,7 +44,7 @@ pub async fn spawn_server(
         .arg("--port")
         .arg(port.to_string())
         .arg("--config")
-        .arg(&state.ov_conf_path)
+        .arg(get_ov_conf_path(state))
         .stdout(Stdio::from(log_file.try_clone().unwrap()))
         .stderr(Stdio::from(log_file))
         .spawn()

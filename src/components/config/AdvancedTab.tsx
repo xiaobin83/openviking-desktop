@@ -43,7 +43,7 @@ export default function AdvancedTab({ config, onChange }: AdvancedTabProps) {
         </label>
         <input
           type="number"
-          value={config.retrieval.top_k}
+          value={config.retrieval?.top_k ?? 10}
           onChange={(e) => update('retrieval.top_k', parseInt(e.target.value) || 10)}
           min={1}
           max={100}
@@ -52,14 +52,14 @@ export default function AdvancedTab({ config, onChange }: AdvancedTabProps) {
       </div>
       <div>
         <label className="block text-sm font-medium text-text-secondary mb-1">
-          检索相似度阈值 ({config.retrieval.threshold})
+          检索相似度阈值 ({config.retrieval?.threshold ?? 0.5})
         </label>
         <input
           type="range"
           min="0"
           max="1"
           step="0.05"
-          value={config.retrieval.threshold}
+          value={config.retrieval?.threshold ?? 0.5}
           onChange={(e) => update('retrieval.threshold', parseFloat(e.target.value))}
           className="w-full accent-aurora-500"
         />

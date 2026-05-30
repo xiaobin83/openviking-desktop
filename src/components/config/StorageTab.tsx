@@ -20,6 +20,15 @@ export default function StorageTab({ config, onChange }: StorageTabProps) {
   return (
     <div className="space-y-4">
       <div>
+        <label className="block text-sm font-medium text-text-secondary mb-1">向量数据库名称</label>
+        <input
+          type="text"
+          value={config.storage.vectordb.name ?? 'context'}
+          onChange={(e) => update('storage.vectordb.name', e.target.value)}
+          className="w-full px-3 py-2 bg-surface-elevated border border-border-subtle rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-aurora-500/50"
+        />
+      </div>
+      <div>
         <label className="block text-sm font-medium text-text-secondary mb-1">向量数据库后端</label>
         <select
           value={config.storage.vectordb.backend}
@@ -45,14 +54,14 @@ export default function StorageTab({ config, onChange }: StorageTabProps) {
       <div className="flex items-center gap-3">
         <label className="text-sm font-medium text-text-secondary">加密存储</label>
         <button
-          onClick={() => update('encryption.enabled', !config.encryption.enabled)}
+          onClick={() => update('encryption.enabled', !(config.encryption?.enabled ?? false))}
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-            config.encryption.enabled ? 'bg-aurora-500' : 'bg-text-muted/30'
+            (config.encryption?.enabled ?? false) ? 'bg-aurora-500' : 'bg-text-muted/30'
           }`}
         >
           <span
             className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-              config.encryption.enabled ? 'translate-x-6' : 'translate-x-1'
+              (config.encryption?.enabled ?? false) ? 'translate-x-6' : 'translate-x-1'
             }`}
           />
         </button>
