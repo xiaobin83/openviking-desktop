@@ -8,6 +8,30 @@ import AdvancedTab from './AdvancedTab';
 
 type SubTab = 'basic' | 'ai' | 'storage' | 'advanced';
 
+function deepMerge<T>(target: T, source: Partial<T>): T {
+  const result = { ...target };
+  for (const key of Object.keys(source) as (keyof T)[]) {
+    const sourceVal = source[key];
+    const targetVal = target[key];
+    if (
+      sourceVal !== null &&
+      typeof sourceVal === 'object' &&
+      !Array.isArray(sourceVal) &&
+      targetVal !== null &&
+      typeof targetVal === 'object' &&
+      !Array.isArray(targetVal)
+    ) {
+      (result as Record<string, unknown>)[key as string] = deepMerge(
+        targetVal as Record<string, unknown>,
+        sourceVal as Record<string, unknown>,
+      );
+    } else if (sourceVal !== undefined) {
+      (result as Record<string, unknown>)[key as string] = sourceVal;
+    }
+  }
+  return result;
+}
+
 const DEFAULT_CONFIG: OvConfig = {
   server: { host: '127.0.0.1', port: 1933 },
   storage: { workspace: '~/.openviking/data', vectordb: { backend: 'local' }, agfs: { backend: 'local' } },
@@ -30,7 +54,7 @@ export default function ConfigPage() {
       .then((content) => {
         try {
           const parsed = JSON.parse(content) as OvConfig;
-          setConfig(parsed);
+          setConfig(deepMerge(DEFAULT_CONFIG, parsed));
         } catch {
           setError('配置格式错误');
         }
