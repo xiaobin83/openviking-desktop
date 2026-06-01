@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { checkHealth, getDashboardSummary, getMemoryStats, setRootApiKey } from '../../lib/api';
+import { checkHealth, getDashboardSummary, getMemoryStats, setRootApiKey, setTenant } from '../../lib/api';
 import type { OvConfig } from '../../lib/types';
 import type { DashboardSummary, MemoryStats } from '../../lib/types';
 import StatusCard from './StatusCard';
@@ -45,6 +45,10 @@ export default function Dashboard() {
         if (config.server?.root_api_key) {
           setRootApiKey(config.server.root_api_key);
         }
+        setTenant(
+          config.server?.account ?? 'default',
+          config.server?.default_user ?? 'default',
+        );
       } catch {
         // 读取配置失败时静默处理
       }

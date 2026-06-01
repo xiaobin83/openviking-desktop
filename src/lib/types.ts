@@ -92,6 +92,8 @@ export interface OvConfig {
     port: number;
     auth_mode?: string | null;
     root_api_key?: string | null;
+    account?: string;
+    default_user?: string;
     cors_origins?: string[];
     observability?: {
       metrics?: { enabled?: boolean };

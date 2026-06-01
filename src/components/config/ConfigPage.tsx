@@ -48,7 +48,9 @@ export default function ConfigPage() {
       .then((content) => {
         try {
           const parsed = JSON.parse(content) as OvConfig;
-          setConfig(deepMerge(DEFAULT_CONFIG, parsed));
+          const cleaned = deepMerge(DEFAULT_CONFIG, parsed);
+          delete (cleaned as unknown as Record<string, unknown>).retrieval;
+          setConfig(cleaned);
         } catch {
           setError(t('config.parse_error'));
         }
@@ -87,7 +89,9 @@ export default function ConfigPage() {
 
   const handleSave = async () => {
     setError('');
-    const json = JSON.stringify(config, null, 2);
+    const cleaned = { ...config };
+    delete (cleaned as unknown as Record<string, unknown>).retrieval;
+    const json = JSON.stringify(cleaned, null, 2);
     try {
       await invoke('write_config', { config: json });
       setSaved(true);

@@ -1,5 +1,7 @@
 {
   "app.title": "OpenViking",
+  "app.pageTitle": "OpenViking Dashboard",
+  "app.preparing": "Preparing...",
   "app.subtitle": "Control Panel",
   "tab.overview": "Overview",
   "tab.config": "Config",

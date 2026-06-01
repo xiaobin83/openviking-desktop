@@ -1,5 +1,7 @@
 {
   "app.title": "OpenViking",
+  "app.pageTitle": "OpenViking 仪表盘",
+  "app.preparing": "准备中...",
   "app.subtitle": "控制面板",
   "tab.overview": "概览",
   "tab.config": "配置",

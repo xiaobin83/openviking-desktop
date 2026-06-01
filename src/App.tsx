@@ -10,11 +10,27 @@ type Tab = 'overview' | 'config';
 function App() {
   const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     invoke<string>('read_config').catch(() => {
       invoke('write_config', { config: getDefaultConfigJson() }).catch(() => {});
     });
+  }, []);
+
+  useEffect(() => {
+    const updateTitle = () => {
+      document.title = t('app.pageTitle');
+    };
+    updateTitle();
+    i18n.on('languageChanged', updateTitle);
+    return () => {
+      i18n.off('languageChanged', updateTitle);
+    };
+  }, [i18n, t]);
+
+  useEffect(() => {
+    setReady(true);
   }, []);
 
   const toggleLang = () => {
@@ -27,6 +43,16 @@ function App() {
     { key: 'overview', label: t('tab.overview') },
     { key: 'config', label: t('tab.config') },
   ];
+
+  if (!ready) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-surface">
+        <span className="text-sm tracking-widest text-text-muted">
+          {t('app.preparing')}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-surface">
