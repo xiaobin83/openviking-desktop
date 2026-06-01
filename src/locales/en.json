@@ -123,5 +123,9 @@
   "stats.files_desc": "Indexed knowledge base documents",
   "stats.skills_desc": "Available AI capabilities",
   "stats.memories_desc": "Persistent memory fragments",
-  "stats.tokens_desc": "Tokens consumed today"
+  "stats.tokens_desc": "Tokens consumed today",
+  "stats.retrievals": "Retrievals",
+  "stats.retrievals_desc": "Search queries today",
+  "stats.agents": "Agents",
+  "stats.agents_desc": "Active agents"
 }

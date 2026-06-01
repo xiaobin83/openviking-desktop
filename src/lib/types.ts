@@ -11,8 +11,21 @@ export interface DashboardSummary {
     memories: number;
     total: number;
   };
-  today_tokens?: { input: number; output: number };
-  today_retrievals?: { count: number };
+  today_tokens?: {
+    vlm_input: number;
+    vlm_output: number;
+    embedding_input: number;
+    total: number;
+  };
+  today_retrievals?: {
+    find: number;
+    search: number;
+    total: number;
+  };
+  agent_overview?: {
+    total: number;
+    items: Array<{ agent_id: string; last_seen_at: string }>;
+  };
 }
 
 export interface MemoryStats {
