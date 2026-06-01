@@ -4,6 +4,8 @@ OpenViking 的桌面管理控制台，基于 **Tauri v2** + **React** + **TypeSc
 
 ![Dashboard Screenshot](docs/ov-desktop-dashboard.png)
 
+![Configuration Screenshot](docs/ov-configuration.png)
+
 ## 功能特性
 
 - **服务管理** — 一键启动 / 停止 OpenViking 后端服务，实时监控运行状态
