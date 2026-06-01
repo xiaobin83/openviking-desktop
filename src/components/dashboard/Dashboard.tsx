@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { checkHealth, getDashboardSummary, getMemoryStats } from '../../lib/api';
+import { checkHealth, getDashboardSummary, getMemoryStats, setRootApiKey } from '../../lib/api';
+import type { OvConfig } from '../../lib/types';
 import type { DashboardSummary, MemoryStats } from '../../lib/types';
 import StatusCard from './StatusCard';
 import StatsGrid from './StatsGrid';
@@ -13,6 +14,7 @@ export default function Dashboard() {
   const [version, setVersion] = useState<string>('');
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [memStats, setMemStats] = useState<MemoryStats | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   useEffect(() => {
     const unlisten = listen<string>('server-status-changed', (event) => {
@@ -26,7 +28,28 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    if (serverStatus === 'error' || serverStatus === 'timeout') {
+      invoke<string>('get_last_error').then(setErrorMessage).catch(() => {});
+    } else {
+      setErrorMessage('');
+    }
+  }, [serverStatus]);
+
+  useEffect(() => {
     if (serverStatus !== 'running') return;
+
+    const initApi = async () => {
+      try {
+        const content = await invoke<string>('read_config');
+        const config = JSON.parse(content) as OvConfig;
+        if (config.server?.root_api_key) {
+          setRootApiKey(config.server.root_api_key);
+        }
+      } catch {
+        // 读取配置失败时静默处理
+      }
+    };
+    initApi();
 
     const fetchData = async () => {
       try {
@@ -48,9 +71,11 @@ export default function Dashboard() {
 
   const handleToggleServer = async () => {
     try {
-      if (serverStatus === 'running') {
+      if (serverStatus === 'running' || serverStatus === 'starting') {
+        setServerStatus('stopped');
         await invoke('stop_server');
       } else {
+        setServerStatus('starting');
         await invoke('start_server');
       }
     } catch (err) {
@@ -67,7 +92,9 @@ export default function Dashboard() {
       <StatusCard
         status={serverStatus}
         version={version}
+        errorMessage={errorMessage}
         onToggle={handleToggleServer}
+        onShowLog={() => invoke('open_log_file')}
       />
       {serverStatus === 'running' && (
         <>

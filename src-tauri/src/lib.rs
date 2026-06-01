@@ -18,6 +18,7 @@ pub struct ServerState {
     pub python_path: String,
     pub workspace_path: Mutex<String>,
     pub server_log_path: String,
+    pub last_error: Mutex<String>,
 }
 
 impl Drop for ServerState {
@@ -35,6 +36,11 @@ impl Drop for ServerState {
 #[tauri::command]
 async fn get_server_status(state: tauri::State<'_, ServerState>) -> Result<String, String> {
     Ok(state.status.lock().unwrap().clone())
+}
+
+#[tauri::command]
+async fn get_last_error(state: tauri::State<'_, ServerState>) -> Result<String, String> {
+    Ok(state.last_error.lock().unwrap().clone())
 }
 
 #[tauri::command]
@@ -131,6 +137,16 @@ async fn read_server_log(state: tauri::State<'_, ServerState>) -> Result<String,
     }
 }
 
+#[tauri::command]
+async fn open_log_file(state: tauri::State<'_, ServerState>) -> Result<String, String> {
+    let path = &state.server_log_path;
+    std::process::Command::new("open")
+        .arg(path)
+        .spawn()
+        .map_err(|e| format!("打开日志文件失败: {}", e))?;
+    Ok("ok".to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     env_logger::init();
@@ -155,7 +171,7 @@ pub fn run() {
 
             let home = get_home_dir();
             let server_log_path = home
-                .join("Library/Logs/OpenViking/server.log")
+                .join("Library/Logs/OpenViking/openviking.log")
                 .to_string_lossy()
                 .to_string();
 
@@ -182,21 +198,16 @@ pub fn run() {
                 python_path,
                 workspace_path: Mutex::new(expanded_workspace_path),
                 server_log_path,
+                last_error: Mutex::new(String::new()),
             });
 
             tray::create_tray(app.handle())?;
-
-            let app_handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                if app_handle.try_state::<ServerState>().is_some() {
-                    let _ = process::spawn_server_with_app_handle(&app_handle).await;
-                }
-            });
 
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             get_server_status,
+            get_last_error,
             start_server,
             stop_server,
             read_config,
@@ -204,6 +215,7 @@ pub fn run() {
             get_workspace,
             set_workspace,
             read_server_log,
+            open_log_file,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {

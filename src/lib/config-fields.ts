@@ -338,27 +338,6 @@ const FIELDS: ConfigField[] = [
 
   // ===== Advanced Tab =====
   {
-    path: 'retrieval.top_k',
-    label: 'advanced.top_k',
-    description: 'advanced.top_k_desc',
-    type: 'number',
-    tab: 'advanced',
-    defaultValue: 10,
-    min: 1,
-    max: 100,
-  },
-  {
-    path: 'retrieval.threshold',
-    label: 'advanced.similarity_threshold',
-    description: 'advanced.similarity_threshold_desc',
-    type: 'number',
-    tab: 'advanced',
-    defaultValue: 0.5,
-    min: 0,
-    max: 1,
-    step: 0.05,
-  },
-  {
     path: 'server.cors_origins',
     label: 'advanced.cors_origins',
     description: 'advanced.cors_origins_desc',
@@ -457,7 +436,6 @@ const defaultConfigObj = {
     circuit_breaker: { failure_threshold: 5, reset_timeout: 60, max_reset_timeout: 600 },
   },
   vlm: { max_retries: 3, max_concurrent: 100, timeout: 60.0, thinking: false, stream: false },
-  retrieval: { top_k: 10, threshold: 0.5 },
   encryption: { enabled: false },
   log: { level: 'INFO' },
   feishu: {

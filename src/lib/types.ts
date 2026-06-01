@@ -91,6 +91,7 @@ export interface OvConfig {
     host?: string;
     port: number;
     auth_mode?: string | null;
+    root_api_key?: string | null;
     cors_origins?: string[];
     observability?: {
       metrics?: { enabled?: boolean };
@@ -110,10 +111,6 @@ export interface OvConfig {
     circuit_breaker?: CircuitBreakerConfig;
   };
   vlm?: VlmConfig;
-  retrieval?: {
-    top_k?: number;
-    threshold?: number;
-  };
   encryption?: {
     enabled?: boolean;
   };

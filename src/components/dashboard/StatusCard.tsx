@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next';
 interface StatusCardProps {
   status: string;
   version: string;
+  errorMessage: string;
   onToggle: () => void;
+  onShowLog: () => void;
 }
 
 const STATUS_CONFIG: Record<string, { labelKey: string; dot: string; ring: string; badge: string; pulseColor: string }> = {
@@ -44,7 +46,7 @@ const STATUS_CONFIG: Record<string, { labelKey: string; dot: string; ring: strin
   },
 };
 
-export default function StatusCard({ status, version, onToggle }: StatusCardProps) {
+export default function StatusCard({ status, version, errorMessage, onToggle, onShowLog }: StatusCardProps) {
   const { t } = useTranslation();
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.stopped;
   const isStopped = status === 'stopped' || status === 'error' || status === 'timeout';
@@ -67,6 +69,17 @@ export default function StatusCard({ status, version, onToggle }: StatusCardProp
             <p className="mt-0.5 font-mono text-xs text-text-muted">
               {status === 'running' ? `v${version}` : t('status.not_running')}
             </p>
+            {(status === 'error' || status === 'timeout') && errorMessage && (
+              <p className="mt-1 text-xs text-red-400/80">{errorMessage}</p>
+            )}
+            {(status === 'error' || status === 'timeout') && (
+              <button
+                onClick={onShowLog}
+                className="mt-2 rounded-lg border border-border-subtle bg-surface-elevated px-3 py-1 text-xs font-medium text-text-secondary transition-colors hover:border-border-active hover:text-text-primary"
+              >
+                Show Log
+              </button>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-3">

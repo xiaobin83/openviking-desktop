@@ -21,6 +21,8 @@
   "basic.server_host_desc": "服务监听地址，默认 127.0.0.1。修改为 0.0.0.0 可允许远程访问。",
   "basic.server_port": "服务端口 (port)",
   "basic.server_port_desc": "服务监听端口，默认 1933。修改后需重启服务生效。",
+  "basic.root_api_key": "Root API 密钥",
+  "basic.root_api_key_desc": "服务端 Root API 密钥，用于身份验证。设置后所有 API 请求需通过 Authorization 请求头携带此密钥。",
   "basic.storage_path": "数据存储路径 (workspace)",
   "basic.storage_path_desc": "知识库数据、向量数据库等文件的存储目录。",
   "basic.log_level": "日志级别 (level)",

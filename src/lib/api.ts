@@ -1,9 +1,20 @@
 import type { HealthResponse, DashboardSummary, MemoryStats, ApiResponse } from './types';
 
 const BASE_URL = 'http://127.0.0.1:1933';
+let rootApiKey = '';
+
+export function setRootApiKey(key: string) {
+  rootApiKey = key;
+}
+
+function authHeaders(): Record<string, string> {
+  return rootApiKey ? { 'Authorization': `Bearer ${rootApiKey}` } : {};
+}
 
 async function fetchApi<T>(path: string): Promise<T> {
-  const response = await fetch(`${BASE_URL}${path}`);
+  const response = await fetch(`${BASE_URL}${path}`, {
+    headers: { ...authHeaders() },
+  });
   if (!response.ok) {
     throw new Error(`API error: ${response.status}`);
   }
@@ -15,7 +26,9 @@ async function fetchApi<T>(path: string): Promise<T> {
 }
 
 export async function checkHealth(): Promise<HealthResponse> {
-  const response = await fetch(`${BASE_URL}/health`);
+  const response = await fetch(`${BASE_URL}/health`, {
+    headers: { ...authHeaders() },
+  });
   if (!response.ok) {
     throw new Error(`Health check failed: ${response.status}`);
   }

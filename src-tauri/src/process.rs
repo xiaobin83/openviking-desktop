@@ -3,11 +3,10 @@ use std::fs::File;
 use tauri::{AppHandle, Emitter, Manager};
 use crate::{get_ov_conf_path, ServerState};
 
-pub async fn spawn_server_with_app_handle(
-    app: &AppHandle,
-) -> Result<String, String> {
-    let state = app.state::<ServerState>();
-    spawn_server(&state, app).await
+fn set_error(state: &ServerState, app: &AppHandle, msg: &str) {
+    *state.status.lock().unwrap() = "error".to_string();
+    *state.last_error.lock().unwrap() = msg.to_string();
+    let _ = app.emit("server-status-changed", "error");
 }
 
 pub async fn spawn_server(
@@ -16,25 +15,32 @@ pub async fn spawn_server(
 ) -> Result<String, String> {
     let python_path = &state.python_path;
     if !std::path::Path::new(python_path).exists() {
-        *state.status.lock().unwrap() = "error".to_string();
-        let _ = app.emit("server-status-changed", "error");
+        set_error(state, app, "Python 环境未找到，请检查 Resources/python 目录");
         return Err("Python 环境未找到".to_string());
     }
 
     {
-        let child = state.child.lock().unwrap();
+        let mut child = state.child.lock().unwrap();
         if child.is_some() {
-            return Err("服务已在运行".to_string());
+            if let Some(ref mut c) = *child {
+                let _ = c.kill();
+                let _ = c.wait();
+            }
+            *child = None;
         }
     }
 
+    *state.last_error.lock().unwrap() = String::new();
     *state.status.lock().unwrap() = "starting".to_string();
     let _ = app.emit("server-status-changed", "starting");
 
     let port = *state.port.lock().unwrap();
 
     let log_file = File::create(&state.server_log_path)
-        .map_err(|e| format!("无法创建日志文件: {}", e))?;
+        .map_err(|e| {
+            set_error(state, app, &format!("无法创建日志文件: {}", e));
+            format!("无法创建日志文件: {}", e)
+        })?;
 
     let child = Command::new(python_path)
         .arg("-m")
@@ -49,15 +55,23 @@ pub async fn spawn_server(
         .stderr(Stdio::from(log_file))
         .spawn()
         .map_err(|e| {
-            *state.status.lock().unwrap() = "error".to_string();
-            let _ = app.emit("server-status-changed", "error");
-            format!("启动服务失败: {}", e)
+            let msg = format!("启动服务失败: {}", e);
+            set_error(state, app, &msg);
+            msg
         })?;
 
     *state.child.lock().unwrap() = Some(child);
 
     let health_port = *state.port.lock().unwrap();
     let app_for_health = app.clone();
+
+    let root_api_key = {
+        let ov_conf_path = get_ov_conf_path(state);
+        std::fs::read_to_string(&ov_conf_path).ok()
+            .and_then(|content| serde_json::from_str::<serde_json::Value>(&content).ok())
+            .and_then(|json| json.get("server")?.get("root_api_key")?.as_str().map(|s| s.to_string()))
+            .filter(|s| !s.is_empty())
+    };
 
     tokio::spawn(async move {
         let url = format!("http://127.0.0.1:{}/health", health_port);
@@ -72,12 +86,18 @@ pub async fn spawn_server(
             if start.elapsed() > timeout {
                 if let Some(s) = app_for_health.try_state::<ServerState>() {
                     *s.status.lock().unwrap() = "timeout".to_string();
+                    *s.last_error.lock().unwrap() = "服务启动超时（30 秒），请检查 Python 服务和配置是否正确".to_string();
                 }
                 let _ = app_for_health.emit("server-status-changed", "timeout");
                 break;
             }
 
-            match client.get(&url).send().await {
+            let mut req = client.get(&url);
+            if let Some(ref key) = root_api_key {
+                req = req.header("Authorization", format!("Bearer {}", key));
+            }
+
+            match req.send().await {
                 Ok(resp) if resp.status().is_success() => {
                     if let Some(s) = app_for_health.try_state::<ServerState>() {
                         *s.status.lock().unwrap() = "running".to_string();
@@ -105,6 +125,7 @@ pub async fn stop_server(
         let _ = child.wait();
     }
     *child_opt = None;
+    *state.last_error.lock().unwrap() = String::new();
     *state.status.lock().unwrap() = "stopped".to_string();
     let _ = app.emit("server-status-changed", "stopped");
     Ok("stopped".to_string())
