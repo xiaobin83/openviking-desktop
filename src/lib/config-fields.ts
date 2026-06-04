@@ -62,6 +62,14 @@ const FIELDS: ConfigField[] = [
       { label: 'ERROR', value: 'ERROR' },
     ],
   },
+  {
+    path: 'server.root_api_key',
+    label: 'basic.root_api_key',
+    description: 'basic.root_api_key_desc',
+    type: 'password',
+    tab: 'basic',
+    defaultValue: null,
+  },
 
   // ===== AI Tab - Dense Embedding =====
   {
