@@ -3,7 +3,6 @@ use tauri::{
     AppHandle, Listener, Manager,
     menu::{Menu, MenuBuilder, MenuItemBuilder},
     tray::{TrayIcon, TrayIconBuilder},
-    WebviewUrl,
 };
 
 static TRAY: Mutex<Option<TrayIcon>> = Mutex::new(None);
@@ -72,7 +71,7 @@ fn build_status_menu(app: &AppHandle, status: &str) -> tauri::Result<Menu<tauri:
         .build(app)?;
     let dashboard_item = MenuItemBuilder::with_id("open_dashboard", "打开仪表盘")
         .build(app)?;
-    let playground_item = MenuItemBuilder::with_id("open_playground", "启动 PlayGround")
+    let playground_item = MenuItemBuilder::with_id("open_playground", "启动 Playground")
         .enabled(is_running)
         .build(app)?;
     let quit_item = MenuItemBuilder::with_id("quit", "退出")
@@ -123,23 +122,8 @@ fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
             }
         }
         "open_playground" => {
-            let port = *app.state::<crate::ServerState>().port.lock().unwrap();
-            let url = format!("http://localhost:{}", port);
-            if let Some(window) = app.get_webview_window("playground") {
-                let _ = window.show();
-                let _ = window.set_focus();
-            } else {
-                let url = url.parse::<tauri::Url>().expect("invalid playground URL");
-                let _ = tauri::WebviewWindowBuilder::new(
-                    app,
-                    "playground",
-                    WebviewUrl::External(url),
-                )
-                .title("PlayGround")
-                .inner_size(850.0, 650.0)
-                .center()
-                .build();
-            }
+            let state = app.state::<crate::ServerState>();
+            let _ = crate::open_playground_inner(app, &state);
         }
         "quit" => {
             log::info!("Quit requested from tray menu");

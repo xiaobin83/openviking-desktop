@@ -102,13 +102,29 @@ export default function Dashboard() {
         <div className="h-6 w-1 rounded-full bg-gradient-to-b from-aurora-400 to-aurora-600" />
         <h2 className="text-lg font-bold tracking-tight text-text-primary">{t('dashboard.service_status')}</h2>
       </div>
-      <StatusCard
-        status={serverStatus}
-        version={version}
-        errorMessage={errorMessage}
-        onToggle={handleToggleServer}
-        onShowLog={() => invoke('open_log_file')}
-      />
+      <div className="flex items-stretch gap-3">
+        <button
+          onClick={() => invoke('open_playground')}
+          disabled={serverStatus !== 'running'}
+          className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl border px-4 backdrop-blur-sm transition-all duration-300 ${
+            serverStatus === 'running'
+              ? 'border-aurora-500/20 bg-aurora-500/10 text-aurora-400 hover:border-aurora-500/30 hover:bg-aurora-500/20 cursor-pointer'
+              : 'border-border-subtle bg-gray-500/5 text-gray-500 cursor-not-allowed'
+          }`}
+        >
+          <span className="text-xl leading-none">🎮</span>
+          <span className="text-[11px] font-medium leading-tight">Playground</span>
+        </button>
+        <div className="flex-1">
+          <StatusCard
+            status={serverStatus}
+            version={version}
+            errorMessage={errorMessage}
+            onToggle={handleToggleServer}
+            onShowLog={() => invoke('open_log_file')}
+          />
+        </div>
+      </div>
       {serverStatus === 'running' && (
         <>
           <div className="animate-slide-up flex items-center gap-3" style={{ animationDelay: '150ms' }}>
