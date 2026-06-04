@@ -73,17 +73,21 @@ export default function ConfigPage() {
       });
   }, []);
 
-  const handleWorkspaceChange = async (newWorkspace: string) => {
+  const handleApplyWorkspace = async (newWorkspace: string): Promise<boolean> => {
+    if (newWorkspace === workspace) return true;
+    const confirmed = window.confirm(t('config.workspace_confirm'));
+    if (!confirmed) return false;
     setError('');
-    setWorkspace(newWorkspace);
     try {
+      await invoke('stop_server');
       await invoke('set_workspace', { path: newWorkspace });
-      await invoke<string>('read_config').catch(() =>
-        invoke('write_config', { config: getDefaultConfigJson() })
-      );
+      await invoke('write_config', { config: getDefaultConfigJson() });
+      setWorkspace(newWorkspace);
       loadConfig();
+      return true;
     } catch (err) {
       setError(String(err));
+      return false;
     }
   };
 
@@ -148,7 +152,7 @@ export default function ConfigPage() {
           config={config}
           onChange={setConfig}
           workspace={workspace}
-          onWorkspaceChange={handleWorkspaceChange}
+          onApplyWorkspace={handleApplyWorkspace}
         />
       )}
       {activeSubTab === 'ai' && <AITab config={config} onChange={setConfig} />}

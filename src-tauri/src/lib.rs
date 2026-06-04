@@ -154,6 +154,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let python_path = {
                 let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -202,6 +203,32 @@ pub fn run() {
             });
 
             tray::create_tray(app.handle())?;
+
+            // 首次启动：若 ov.conf 不存在则生成默认配置
+            let state = app.state::<ServerState>();
+            let conf_path = get_ov_conf_path(&state);
+            if !std::path::Path::new(&conf_path).exists() {
+                log::info!("Generating default ov.conf at {}", conf_path);
+                let default_config = r#"{
+  "server": { "host": "127.0.0.1", "port": 1933, "cors_origins": ["*"] },
+  "storage": { "workspace": "~/.openviking/data", "vectordb": { "backend": "local" }, "agfs": { "backend": "local" } },
+  "embedding": { "dense": { "dimension": 1024, "batch_size": 32 }, "max_concurrent": 10, "max_retries": 3, "circuit_breaker": { "failure_threshold": 5, "reset_timeout": 60, "max_reset_timeout": 600 } },
+  "vlm": { "max_retries": 3, "max_concurrent": 100, "timeout": 60.0, "thinking": false, "stream": false },
+  "encryption": { "enabled": false },
+  "log": { "level": "INFO" },
+  "feishu": { "domain": "https://open.feishu.cn", "max_rows_per_sheet": 1000, "max_records_per_table": 1000 }
+}"#;
+                if let Some(parent) = std::path::Path::new(&conf_path).parent() {
+                    std::fs::create_dir_all(parent).ok();
+                }
+                std::fs::write(&conf_path, default_config).ok();
+            }
+
+            // 自动启动服务
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let _ = process::spawn_server_with_app_handle(&app_handle).await;
+            });
 
             Ok(())
         })
