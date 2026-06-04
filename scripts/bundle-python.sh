@@ -1,36 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# bundle-python.sh — 创建全新 Python venv 并安装 openviking，打包到 resources 目录
-#
-# 用法：
-#   bash scripts/bundle-python.sh
-#   bash scripts/bundle-python.sh --with-bot
-
-WITH_BOT=false
-
-for arg in "$@"; do
-  case "$arg" in
-    --with-bot)
-      WITH_BOT=true
-      shift
-      ;;
-    *)
-      echo "未知参数: $arg"
-      echo "用法: bash scripts/bundle-python.sh [--with-bot]"
-      exit 1
-      ;;
-  esac
-done
+# bundle-python.sh — 创建全新 Python venv 并安装 openviking[bot]，打包到 resources 目录
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TAURI_RESOURCES="$SCRIPT_DIR/../resources/python"
 
-PKG_NAME="openviking"
-if [ "$WITH_BOT" = true ]; then
-  PKG_NAME="openviking[bot]"
-fi
+PKG_NAME="openviking[bot]"
 
 echo "=== 打包 Python venv 到 resources ==="
 echo "项目根目录:   $PROJECT_ROOT"
