@@ -30,8 +30,7 @@ impl Drop for ServerState {
         if let Ok(mut guard) = self.child.try_lock() {
             if let Some(ref mut child) = *guard {
                 log::info!("ServerState::drop: killing openviking-server");
-                let _ = child.kill();
-                let _ = child.wait();
+                crate::process::kill_child(child);
             }
         }
     }
@@ -631,8 +630,7 @@ pub fn run() {
                         let mut child_opt = state.child.lock().unwrap();
                         if let Some(ref mut c) = *child_opt {
                             log::info!("Killing openviking-server on RunEvent::Exit");
-                            let _ = c.kill();
-                            let _ = c.wait();
+                            crate::process::kill_child(c);
                         }
                         *child_opt = None;
                     }

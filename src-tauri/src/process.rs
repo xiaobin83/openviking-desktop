@@ -4,6 +4,26 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 use crate::{get_ov_conf_path, ServerState};
 
+#[cfg(unix)]
+use std::os::unix::process::CommandExt;
+
+/// Kill a child process and its entire process group (Unix) or just the child (non-Unix).
+/// On Unix, this uses process groups to ensure subprocesses are also terminated.
+#[cfg(unix)]
+pub fn kill_child(child: &mut std::process::Child) {
+    let pid = child.id();
+    unsafe {
+        libc::kill(-(pid as i32), libc::SIGKILL);
+    }
+    let _ = child.wait();
+}
+
+#[cfg(not(unix))]
+pub fn kill_child(child: &mut std::process::Child) {
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
 fn set_error(state: &ServerState, app: &AppHandle, msg: &str) {
     *state.status.lock().unwrap() = "error".to_string();
     *state.last_error.lock().unwrap() = msg.to_string();
@@ -28,14 +48,11 @@ pub async fn spawn_server(
     }
 
     {
-        let mut child = state.child.lock().unwrap();
-        if child.is_some() {
-            if let Some(ref mut c) = *child {
-                let _ = c.kill();
-                let _ = c.wait();
-            }
-            *child = None;
+        let mut child_opt = state.child.lock().unwrap();
+        if let Some(ref mut c) = *child_opt {
+            kill_child(c);
         }
+        *child_opt = None;
     }
 
     *state.last_error.lock().unwrap() = String::new();
@@ -50,7 +67,8 @@ pub async fn spawn_server(
             format!("无法创建日志文件: {}", e)
         })?;
 
-    let child = Command::new(&python_path)
+    let mut command = Command::new(&python_path);
+    command
         .arg("-m")
         .arg("openviking.server.bootstrap")
         .arg("--host")
@@ -61,13 +79,18 @@ pub async fn spawn_server(
         .arg(get_ov_conf_path(state))
         .arg("--with-bot")
         .stdout(Stdio::from(log_file.try_clone().unwrap()))
-        .stderr(Stdio::from(log_file))
-        .spawn()
-        .map_err(|e| {
-            let msg = format!("启动服务失败: {}", e);
-            set_error(state, app, &msg);
-            msg
-        })?;
+        .stderr(Stdio::from(log_file));
+
+    #[cfg(unix)]
+    {
+        command.process_group(0);
+    }
+
+    let child = command.spawn().map_err(|e| {
+        let msg = format!("启动服务失败: {}", e);
+        set_error(state, app, &msg);
+        msg
+    })?;
 
     *state.child.lock().unwrap() = Some(child);
 
@@ -223,12 +246,11 @@ fn start_runtime_health_monitor(
             }
             let _ = app.emit("server-status-changed", "starting");
 
-            // 杀死现有进程
+            // 杀死现有进程（包括子进程）
             if let Some(s) = app.try_state::<ServerState>() {
                 let mut child_opt = s.child.lock().unwrap();
                 if let Some(ref mut c) = *child_opt {
-                    let _ = c.kill();
-                    let _ = c.wait();
+                    kill_child(c);
                 }
                 *child_opt = None;
             }
@@ -254,7 +276,8 @@ fn start_runtime_health_monitor(
                 }
             };
 
-            let child = match Command::new(&venv_path)
+            let mut command = Command::new(&venv_path);
+            command
                 .arg("-m")
                 .arg("openviking.server.bootstrap")
                 .arg("--host")
@@ -265,8 +288,14 @@ fn start_runtime_health_monitor(
                 .arg(&ov_conf_path)
                 .arg("--with-bot")
                 .stdout(Stdio::from(log_file.try_clone().unwrap()))
-                .stderr(Stdio::from(log_file))
-                .spawn()
+                .stderr(Stdio::from(log_file));
+
+            #[cfg(unix)]
+            {
+                command.process_group(0);
+            }
+
+            let child = match command.spawn()
             {
                 Ok(c) => c,
                 Err(e) => {
@@ -318,8 +347,7 @@ pub async fn stop_server(
 ) -> Result<String, String> {
     let mut child_opt = state.child.lock().unwrap();
     if let Some(ref mut child) = *child_opt {
-        let _ = child.kill();
-        let _ = child.wait();
+        kill_child(child);
     }
     *child_opt = None;
     *state.last_error.lock().unwrap() = String::new();
