@@ -131,5 +131,23 @@
   "stats.retrievals": "Retrievals",
   "stats.retrievals_desc": "Search queries today",
   "stats.agents": "Agents",
-  "stats.agents_desc": "Active agents"
+  "stats.agents_desc": "Active agents",
+
+  "python.not_installed": "OpenViking Not Installed",
+  "python.not_installed_hint": "Install to start the service",
+  "python.install": "Install OpenViking",
+  "python.upgrade": "Upgrade to {{version}}",
+  "python.latest": "Up to Date",
+  "python.installing": "Installing OpenViking...",
+  "python.upgrading": "Upgrading OpenViking...",
+  "python.downloading": "Downloading Python {{version}}...",
+  "python.creating_venv": "Creating virtual environment...",
+  "python.change_version": "Change Python Version",
+  "python.current_version": "Current Version",
+  "python.new_version": "New Version",
+  "python.confirm_change": "Changing Python version will recreate the virtualenv and reinstall openviking. Continue?",
+  "python.network_error": "Network error, please check your connection and retry",
+  "python.uv_not_found": "uv runtime not found, please reinstall OpenViking Desktop",
+  "python.env_title": "Python Environment",
+  "python.log_output": "stdout/stderr output"
 }

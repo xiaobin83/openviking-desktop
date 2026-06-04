@@ -35,7 +35,7 @@
       "icons/icon.icns"
     ],
     "resources": [
-      "Resources/python/**/*"
+      "Resources/uv/**/*"
     ],
     "macOS": {
       "minimumSystemVersion": "14.0"

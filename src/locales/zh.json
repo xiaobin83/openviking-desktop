@@ -131,5 +131,23 @@
   "stats.retrievals": "检索次数",
   "stats.retrievals_desc": "今日检索查询数",
   "stats.agents": "Agent",
-  "stats.agents_desc": "活跃的 Agent 数量"
+  "stats.agents_desc": "活跃的 Agent 数量",
+
+  "python.not_installed": "OpenViking 未安装",
+  "python.not_installed_hint": "请安装后即可启动服务",
+  "python.install": "安装 OpenViking",
+  "python.upgrade": "升级到 {{version}}",
+  "python.latest": "已是最新",
+  "python.installing": "安装 OpenViking...",
+  "python.upgrading": "升级 OpenViking...",
+  "python.downloading": "下载 Python {{version}}...",
+  "python.creating_venv": "创建虚拟环境...",
+  "python.change_version": "更改 Python 版本",
+  "python.current_version": "当前版本",
+  "python.new_version": "新版本",
+  "python.confirm_change": "更改 Python 版本将重新创建 virtualenv 并重新安装 openviking，是否继续？",
+  "python.network_error": "网络连接失败，请检查网络后重试",
+  "python.uv_not_found": "uv 运行时未找到，请重新安装 OpenViking Desktop",
+  "python.env_title": "Python 环境",
+  "python.log_output": "stdout/stderr 输出"
 }

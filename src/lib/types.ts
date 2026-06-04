@@ -134,3 +134,18 @@ export interface OvConfig {
   };
   feishu?: FeishuConfig;
 }
+
+export interface PythonEnvState {
+  installed: boolean;
+  currentVersion: string | null;
+  latestVersion: string | null;
+  pythonVersion: string | null;
+  upgradable: boolean;
+}
+
+export interface PythonTaskProgress {
+  step: string;
+  message: string;
+  done: boolean;
+  log_line: string;
+}

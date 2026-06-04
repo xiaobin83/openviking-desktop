@@ -4,3 +4,10 @@ src-tauri/target/
 src-tauri/vendor/
 *.log
 .DS_Store
+
+# uv binary (downloaded by scripts/download-uv.sh)
+resources/uv/
+src-tauri/Resources/uv/
+
+# development artifacts
+.superpowers/

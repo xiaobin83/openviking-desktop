@@ -21,10 +21,10 @@ pub async fn spawn_server(
     state: &ServerState,
     app: &AppHandle,
 ) -> Result<String, String> {
-    let python_path = &state.python_path;
-    if !std::path::Path::new(python_path).exists() {
-        set_error(state, app, "Python 环境未找到，请检查 Resources/python 目录");
-        return Err("Python 环境未找到".to_string());
+    let python_path = state.venv_path.lock().unwrap().clone();
+    if !std::path::Path::new(&python_path).exists() {
+        set_error(state, app, "OpenViking 未安装，请先在仪表盘中安装");
+        return Err("OpenViking 未安装".to_string());
     }
 
     {
@@ -50,7 +50,7 @@ pub async fn spawn_server(
             format!("无法创建日志文件: {}", e)
         })?;
 
-    let child = Command::new(python_path)
+    let child = Command::new(&python_path)
         .arg("-m")
         .arg("openviking.server.bootstrap")
         .arg("--host")
@@ -73,7 +73,7 @@ pub async fn spawn_server(
 
     let health_port = *state.port.lock().unwrap();
     let app_for_health = app.clone();
-    let state_python_path = state.python_path.clone();
+    let state_python_path = state.venv_path.lock().unwrap().clone();
     let state_log_path = state.server_log_path.clone();
 
     let root_api_key = {
@@ -158,7 +158,7 @@ fn start_runtime_health_monitor(
     url: String,
     api_key: Option<String>,
     port: u16,
-    python_path: String,
+    venv_path: String,
     log_path: String,
 ) {
     tokio::spawn(async move {
@@ -254,7 +254,7 @@ fn start_runtime_health_monitor(
                 }
             };
 
-            let child = match Command::new(&python_path)
+            let child = match Command::new(&venv_path)
                 .arg("-m")
                 .arg("openviking.server.bootstrap")
                 .arg("--host")

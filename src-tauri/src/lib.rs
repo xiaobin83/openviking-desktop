@@ -1,8 +1,9 @@
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use std::sync::Mutex;
 use std::process::Child;
 
 mod process;
+mod python_env;
 mod tray;
 
 const DEFAULT_OV_CONF_PATH: &str = ".openviking/ov.conf";
@@ -15,10 +16,12 @@ pub struct ServerState {
     pub child: Mutex<Option<Child>>,
     pub status: Mutex<String>,
     pub port: Mutex<u16>,
-    pub python_path: String,
+    pub venv_path: Mutex<String>,
     pub workspace_path: Mutex<String>,
     pub server_log_path: String,
     pub last_error: Mutex<String>,
+    pub uv_path: String,
+    pub openviking_version: Mutex<String>,
 }
 
 impl Drop for ServerState {
@@ -147,6 +150,269 @@ async fn open_log_file(state: tauri::State<'_, ServerState>) -> Result<String, S
     Ok("ok".to_string())
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenvikingState {
+    pub installed: bool,
+    pub current_version: Option<String>,
+    pub latest_version: Option<String>,
+    pub python_version: Option<String>,
+    pub upgradable: bool,
+}
+
+#[tauri::command]
+async fn check_openviking_state(
+    state: tauri::State<'_, ServerState>,
+) -> Result<OpenvikingState, String> {
+    let installed = !state.venv_path.lock().unwrap().is_empty();
+    let mut current_version = None;
+    let mut python_version = None;
+    let mut latest_version = None;
+    let mut upgradable = false;
+
+    if installed {
+        let uv_path = &state.uv_path;
+        let venv_python = state.venv_path.lock().unwrap().clone();
+
+        match python_env::pip_show_openviking(uv_path, &venv_python) {
+            Ok(Some(v)) => {
+                current_version = Some(v.clone());
+                *state.openviking_version.lock().unwrap() = v;
+            }
+            Ok(None) => log::warn!("check_openviking_state: openviking not found in venv"),
+            Err(e) => log::warn!("check_openviking_state: pip_show error: {}", e),
+        }
+
+        match python_env::pip_index_latest_version(uv_path) {
+            Ok(Some(v)) => latest_version = Some(v),
+            Ok(None) => {} // network unavailable, skip
+            Err(e) => log::warn!("check_openviking_state: index error: {}", e),
+        }
+
+        if let (Some(ref cur), Some(ref latest)) = (&current_version, &latest_version) {
+            upgradable = cur != latest;
+        }
+
+        python_version = get_python_version_internal(&venv_python);
+    }
+
+    Ok(OpenvikingState {
+        installed,
+        current_version,
+        latest_version,
+        python_version,
+        upgradable,
+    })
+}
+
+fn get_python_version_internal(venv_python: &str) -> Option<String> {
+    let output = std::process::Command::new(venv_python)
+        .args(["--version"])
+        .output()
+        .ok()?;
+    let text = String::from_utf8_lossy(&output.stdout).to_string();
+    text.strip_prefix("Python ")
+        .map(|s| s.trim().to_string())
+}
+
+fn get_app_data_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    app.path()
+        .app_data_dir()
+        .map_err(|e| format!("获取应用数据目录失败: {}", e))
+}
+
+#[tauri::command]
+async fn install_openviking(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, ServerState>,
+    python_version: Option<String>,
+) -> Result<String, String> {
+    let version = python_version.unwrap_or_else(|| "3.13".to_string());
+    let uv_path = state.uv_path.clone();
+
+    static INSTALLING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    if INSTALLING.swap(true, std::sync::atomic::Ordering::Acquire) {
+        return Err("已有安装/升级任务正在执行".to_string());
+    }
+
+    let result: Result<String, String> = (async {
+        if !python_env::python_is_installed(&uv_path, &version) {
+            python_env::python_install(&app, &uv_path, &version)?;
+        } else {
+            let _ = app.emit("python-task-progress", python_env::ProgressPayload {
+                step: "downloading_python".into(),
+                message: format!("Python {} 已存在，跳过下载", version),
+                done: false,
+                log_line: String::new(),
+            });
+        }
+
+        let app_data_dir = get_app_data_dir(&app)?;
+        let venv_target = app_data_dir.join("python");
+        let venv_target_str = venv_target.to_string_lossy().to_string();
+        if venv_target.exists() {
+            std::fs::remove_dir_all(&venv_target)
+                .map_err(|e| format!("删除旧 venv 失败: {}", e))?;
+        }
+        std::fs::create_dir_all(&app_data_dir)
+            .map_err(|e| format!("创建应用数据目录失败: {}", e))?;
+        python_env::venv_create(&app, &uv_path, &version, &venv_target_str)?;
+
+        let venv_python = venv_target.join("bin")
+            .join(if cfg!(target_os = "windows") { "python.exe" } else { "python3" });
+        let venv_python_str = venv_python.to_string_lossy().to_string();
+        python_env::pip_install_openviking(&app, &uv_path, &venv_python_str, false)?;
+
+        Ok(venv_python_str)
+    }).await;
+
+    INSTALLING.store(false, std::sync::atomic::Ordering::Release);
+
+    match result {
+        Ok(python_path) => {
+            *state.venv_path.lock().unwrap() = python_path;
+            let _ = app.emit("python-task-progress", python_env::ProgressPayload {
+                step: "done".into(),
+                message: "安装完成".to_string(),
+                done: true,
+                log_line: String::new(),
+            });
+            Ok("installed".to_string())
+        }
+        Err(e) => {
+            let _ = app.emit("python-task-progress", python_env::ProgressPayload {
+                step: "error".into(),
+                message: e.clone(),
+                done: true,
+                log_line: String::new(),
+            });
+            Err(e)
+        }
+    }
+}
+
+#[tauri::command]
+async fn upgrade_openviking(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, ServerState>,
+) -> Result<String, String> {
+    if state.venv_path.lock().unwrap().is_empty() {
+        return Err("OpenViking 未安装".to_string());
+    }
+
+    static UPGRADING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    if UPGRADING.swap(true, std::sync::atomic::Ordering::Acquire) {
+        return Err("已有安装/升级任务正在执行".to_string());
+    }
+
+    let uv_path = state.uv_path.clone();
+    let venv_python = state.venv_path.lock().unwrap().clone();
+
+    let result = python_env::pip_install_openviking(&app, &uv_path, &venv_python, true);
+
+    UPGRADING.store(false, std::sync::atomic::Ordering::Release);
+
+    match result {
+        Ok(()) => {
+            let _ = app.emit("python-task-progress", python_env::ProgressPayload {
+                step: "done".into(),
+                message: "升级完成".to_string(),
+                done: true,
+                log_line: String::new(),
+            });
+            Ok("upgraded".to_string())
+        }
+        Err(e) => {
+            let _ = app.emit("python-task-progress", python_env::ProgressPayload {
+                step: "error".into(),
+                message: e.clone(),
+                done: true,
+                log_line: String::new(),
+            });
+            Err(e)
+        }
+    }
+}
+
+#[tauri::command]
+async fn upgrade_python(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, ServerState>,
+    version: String,
+) -> Result<String, String> {
+    if state.venv_path.lock().unwrap().is_empty() {
+        return Err("OpenViking 未安装".to_string());
+    }
+
+    static UPGRADING_PY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    if UPGRADING_PY.swap(true, std::sync::atomic::Ordering::Acquire) {
+        return Err("已有安装/升级任务正在执行".to_string());
+    }
+
+    let uv_path = state.uv_path.clone();
+    let app_data_dir = get_app_data_dir(&app)?;
+
+    let _ = crate::process::stop_server(&state, &app).await;
+
+    let result: Result<String, String> = (async {
+        if !python_env::python_is_installed(&uv_path, &version) {
+            python_env::python_install(&app, &uv_path, &version)?;
+        }
+
+        let venv_target = app_data_dir.join("python");
+        if venv_target.exists() {
+            std::fs::remove_dir_all(&venv_target)
+                .map_err(|e| format!("删除旧 venv 失败: {}", e))?;
+        }
+        python_env::venv_create(&app, &uv_path, &version, &venv_target.to_string_lossy())?;
+
+        let venv_python = venv_target.join("bin")
+            .join(if cfg!(target_os = "windows") { "python.exe" } else { "python3" });
+        let venv_python_str = venv_python.to_string_lossy().to_string();
+        python_env::pip_install_openviking(&app, &uv_path, &venv_python_str, false)?;
+
+        Ok(venv_python_str)
+    }).await;
+
+    UPGRADING_PY.store(false, std::sync::atomic::Ordering::Release);
+
+    match result {
+        Ok(python_path) => {
+            *state.venv_path.lock().unwrap() = python_path;
+            let _ = app.emit("python-task-progress", python_env::ProgressPayload {
+                step: "done".into(),
+                message: "Python 版本切换完成".to_string(),
+                done: true,
+                log_line: String::new(),
+            });
+            Ok("upgraded".to_string())
+        }
+        Err(e) => {
+            let _ = app.emit("python-task-progress", python_env::ProgressPayload {
+                step: "error".into(),
+                message: e.clone(),
+                done: true,
+                log_line: String::new(),
+            });
+            Err(e)
+        }
+    }
+}
+
+#[tauri::command]
+async fn get_python_versions(
+    state: tauri::State<'_, ServerState>,
+) -> Result<Vec<String>, String> {
+    python_env::python_list_all(&state.uv_path)
+}
+
+#[tauri::command]
+async fn get_uv_path(
+    state: tauri::State<'_, ServerState>,
+) -> Result<String, String> {
+    Ok(state.uv_path.clone())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     env_logger::init();
@@ -156,19 +422,48 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            let python_path = {
+            let target_arch = std::env::consts::ARCH;
+            let target_os = std::env::consts::OS;
+            let target_triple = match (target_arch, target_os) {
+                ("aarch64", "macos") => "aarch64-apple-darwin",
+                ("x86_64", "macos") => "x86_64-apple-darwin",
+                ("x86_64", "windows") => "x86_64-pc-windows-msvc",
+                ("x86_64", "linux") => "x86_64-unknown-linux-gnu",
+                _ => panic!("unsupported platform: {}-{}", target_arch, target_os),
+            };
+            let uv_binary_name = if target_os == "windows" { "uv.exe" } else { "uv" };
+
+            let uv_path = {
                 let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
                 let root_dir = manifest_dir.parent().unwrap_or(manifest_dir);
-                let dev_path = root_dir.join("resources/python/bin/python3");
-                let symlink_path = manifest_dir.join("Resources/python/bin/python3");
+                let dev_path = root_dir
+                    .join("resources/uv")
+                    .join(target_triple)
+                    .join(uv_binary_name);
+                let symlink_path = manifest_dir
+                    .join("Resources/uv")
+                    .join(target_triple)
+                    .join(uv_binary_name);
                 let resource_dir = app.path().resource_dir()
                     .expect("failed to resolve resource dir");
-                let prod_path = resource_dir.join("python/bin/python3");
+                let prod_path = resource_dir
+                    .join("uv")
+                    .join(target_triple)
+                    .join(uv_binary_name);
                 if dev_path.exists() { dev_path }
                 else if symlink_path.exists() { symlink_path }
                 else { prod_path }
             }.to_string_lossy().to_string();
-            log::info!("Python path: {}", python_path);
+            log::info!("uv path: {}", uv_path);
+
+            let app_data_dir = app.path().app_data_dir().expect("no app data dir");
+            let venv_python_path = python_env::get_venv_python_path(&app_data_dir);
+            let venv_path = if venv_python_path.exists() {
+                venv_python_path.to_string_lossy().to_string()
+            } else {
+                String::new()
+            };
+            log::info!("venv path: {}", if venv_path.is_empty() { "(not installed)" } else { &venv_path });
 
             let home = get_home_dir();
             let server_log_path = home
@@ -180,7 +475,6 @@ pub fn run() {
                 std::fs::create_dir_all(parent).ok();
             }
 
-            let app_data_dir = app.path().app_data_dir().expect("no app data dir");
             let workspace_path = {
                 let ws_file = app_data_dir.join("workspace_path");
                 if ws_file.exists() {
@@ -196,10 +490,12 @@ pub fn run() {
                 child: Mutex::new(None),
                 status: Mutex::new("stopped".to_string()),
                 port: Mutex::new(1933),
-                python_path,
+                venv_path: Mutex::new(venv_path),
                 workspace_path: Mutex::new(expanded_workspace_path),
                 server_log_path,
                 last_error: Mutex::new(String::new()),
+                uv_path,
+                openviking_version: Mutex::new(String::new()),
             });
 
             tray::create_tray(app.handle())?;
@@ -224,11 +520,14 @@ pub fn run() {
                 std::fs::write(&conf_path, default_config).ok();
             }
 
-            // 自动启动服务
-            let app_handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                let _ = process::spawn_server_with_app_handle(&app_handle).await;
-            });
+            // 自动启动服务（仅在 venv 已安装时）
+            let auto_start_handle = app.handle().clone();
+            let should_auto_start = !state.venv_path.lock().unwrap().is_empty();
+            if should_auto_start {
+                tauri::async_runtime::spawn(async move {
+                    let _ = process::spawn_server_with_app_handle(&auto_start_handle).await;
+                });
+            }
 
             Ok(())
         })
@@ -243,6 +542,12 @@ pub fn run() {
             set_workspace,
             read_server_log,
             open_log_file,
+            check_openviking_state,
+            install_openviking,
+            upgrade_openviking,
+            upgrade_python,
+            get_python_versions,
+            get_uv_path,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {

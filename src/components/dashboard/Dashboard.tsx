@@ -4,9 +4,10 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { checkHealth, getDashboardSummary, getMemoryStats, setRootApiKey, setTenant } from '../../lib/api';
 import type { OvConfig } from '../../lib/types';
-import type { DashboardSummary, MemoryStats } from '../../lib/types';
+import type { DashboardSummary, MemoryStats, PythonEnvState } from '../../lib/types';
 import StatusCard from './StatusCard';
 import StatsGrid from './StatsGrid';
+import PythonEnvCard from './PythonEnvCard';
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -15,6 +16,7 @@ export default function Dashboard() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [memStats, setMemStats] = useState<MemoryStats | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [pythonInstalled, setPythonInstalled] = useState(false);
 
   useEffect(() => {
     const unlisten = listen<string>('server-status-changed', (event) => {
@@ -87,8 +89,15 @@ export default function Dashboard() {
     }
   };
 
+  const handlePythonStateChange = (state: PythonEnvState) => {
+    setPythonInstalled(state.installed);
+  };
+
   return (
     <div className="space-y-5">
+      <PythonEnvCard onStateChange={handlePythonStateChange} />
+      {pythonInstalled && (
+        <>
       <div className="animate-slide-up flex items-center gap-3">
         <div className="h-6 w-1 rounded-full bg-gradient-to-b from-aurora-400 to-aurora-600" />
         <h2 className="text-lg font-bold tracking-tight text-text-primary">{t('dashboard.service_status')}</h2>
@@ -107,6 +116,8 @@ export default function Dashboard() {
             <h2 className="text-lg font-bold tracking-tight text-text-primary">{t('dashboard.data_overview')}</h2>
           </div>
           <StatsGrid summary={summary} memStats={memStats} />
+        </>
+      )}
         </>
       )}
     </div>
