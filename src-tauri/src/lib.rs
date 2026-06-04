@@ -551,7 +551,7 @@ pub fn run() {
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() == "dashboard" {
+                if window.label() == "dashboard" || window.label() == "playground" {
                     api.prevent_close();
                     let _ = window.hide();
                 }

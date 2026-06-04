@@ -3,6 +3,7 @@ use tauri::{
     AppHandle, Listener, Manager,
     menu::{Menu, MenuBuilder, MenuItemBuilder},
     tray::{TrayIcon, TrayIconBuilder},
+    WebviewUrl,
 };
 
 static TRAY: Mutex<Option<TrayIcon>> = Mutex::new(None);
@@ -71,6 +72,9 @@ fn build_status_menu(app: &AppHandle, status: &str) -> tauri::Result<Menu<tauri:
         .build(app)?;
     let dashboard_item = MenuItemBuilder::with_id("open_dashboard", "打开仪表盘")
         .build(app)?;
+    let playground_item = MenuItemBuilder::with_id("open_playground", "启动 PlayGround")
+        .enabled(is_running)
+        .build(app)?;
     let quit_item = MenuItemBuilder::with_id("quit", "退出")
         .build(app)?;
 
@@ -82,6 +86,8 @@ fn build_status_menu(app: &AppHandle, status: &str) -> tauri::Result<Menu<tauri:
         .item(&stop_item)
         .separator()
         .item(&dashboard_item)
+        .separator()
+        .item(&playground_item)
         .separator()
         .item(&quit_item)
         .build()
@@ -114,6 +120,25 @@ fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
             if let Some(window) = app.get_webview_window("dashboard") {
                 let _ = window.show();
                 let _ = window.set_focus();
+            }
+        }
+        "open_playground" => {
+            let port = *app.state::<crate::ServerState>().port.lock().unwrap();
+            let url = format!("http://localhost:{}", port);
+            if let Some(window) = app.get_webview_window("playground") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            } else {
+                let url = url.parse::<tauri::Url>().expect("invalid playground URL");
+                let _ = tauri::WebviewWindowBuilder::new(
+                    app,
+                    "playground",
+                    WebviewUrl::External(url),
+                )
+                .title("PlayGround")
+                .inner_size(850.0, 650.0)
+                .center()
+                .build();
             }
         }
         "quit" => {
