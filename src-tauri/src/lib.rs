@@ -1,4 +1,5 @@
 use tauri::{Emitter, Manager};
+use tauri_plugin_opener::OpenerExt;
 use std::sync::Mutex;
 use std::process::Child;
 
@@ -413,6 +414,62 @@ async fn get_uv_path(
     Ok(state.uv_path.clone())
 }
 
+pub fn open_playground_inner(app: &tauri::AppHandle, state: &ServerState) -> Result<(), String> {
+    let port = *state.port.lock().unwrap();
+    let url_str = format!("http://localhost:{}", port);
+    let url = url_str.parse::<tauri::Url>().map_err(|e| format!("Invalid URL: {}", e))?;
+
+    if let Some(window) = app.get_webview_window("playground") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    } else {
+        let app_for_nav = app.clone();
+        tauri::WebviewWindowBuilder::new(
+            app,
+            "playground",
+            tauri::WebviewUrl::External(url),
+        )
+        .title("Playground")
+        .inner_size(850.0, 650.0)
+        .center()
+        .initialization_script(
+            r#"
+document.addEventListener('click', function(e) {
+    var a = e.target.closest('a');
+    if (a && a.target === '_blank') {
+        e.preventDefault();
+        window.location.href = a.href;
+    }
+});
+var _open = window.open;
+window.open = function(url) {
+    window.location.href = url;
+};
+"#,
+        )
+        .on_navigation(move |nav_url| {
+            if nav_url.host_str() == Some("localhost") {
+                true
+            } else {
+                if let Err(e) = app_for_nav.opener().open_url(nav_url.as_str(), None::<&str>) {
+                    log::error!("Failed to open URL in browser: {}", e);
+                }
+                false
+            }
+        })
+        .build()
+        .map_err(|e| format!("Failed to create window: {}", e))?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn open_playground(app: tauri::AppHandle, state: tauri::State<'_, ServerState>) -> Result<String, String> {
+    open_playground_inner(&app, &state)?;
+    Ok("ok".to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     env_logger::init();
@@ -421,6 +478,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let target_arch = std::env::consts::ARCH;
             let target_os = std::env::consts::OS;
@@ -548,6 +606,7 @@ pub fn run() {
             upgrade_python,
             get_python_versions,
             get_uv_path,
+            open_playground,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
