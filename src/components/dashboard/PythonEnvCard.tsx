@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { listen } from '@tauri-apps/api/event';
 import type { PythonEnvState, PythonTaskProgress } from '../../lib/types';
 
 export default function PythonEnvCard({
@@ -37,8 +37,7 @@ export default function PythonEnvCard({
   }, []);
 
   useEffect(() => {
-    let unlisten: UnlistenFn | undefined;
-    listen<PythonTaskProgress>('python-task-progress', (event) => {
+    const unlistenPromise = listen<PythonTaskProgress>('python-task-progress', (event) => {
       const { step, message, done, log_line } = event.payload;
       if (log_line) {
         setLogs((prev) => [...prev.slice(-200), log_line]);
@@ -64,11 +63,10 @@ export default function PythonEnvCard({
       } else {
         setStatusMessage(message);
       }
-    }).then((fn) => {
-      unlisten = fn;
     });
+
     return () => {
-      unlisten?.();
+      unlistenPromise.then((fn) => fn());
     };
   }, []);
 
@@ -96,6 +94,20 @@ export default function PythonEnvCard({
     setShowLogs(true);
     try {
       await invoke('upgrade_openviking');
+    } catch (err) {
+      setError(String(err));
+      setLoading(false);
+    }
+  };
+
+  const handleReinstall = async () => {
+    if (!window.confirm(t('python.confirm_reinstall'))) return;
+    setLoading(true);
+    setError('');
+    setLogs([]);
+    setShowLogs(true);
+    try {
+      await invoke('install_openviking', { pythonVersion: '3.13' });
     } catch (err) {
       setError(String(err));
       setLoading(false);
@@ -181,6 +193,14 @@ export default function PythonEnvCard({
                 className="rounded-xl bg-aurora-500/15 px-5 py-2 text-sm font-medium text-aurora-400 transition-all hover:bg-aurora-500/25 hover:shadow-lg hover:shadow-aurora-500/10"
               >
                 {t('python.upgrade', { version: envState.latestVersion })}
+              </button>
+            )}
+            {isInstalled && !loading && (
+              <button
+                onClick={handleReinstall}
+                className="rounded-xl border border-red-500/20 px-4 py-2 text-sm font-medium text-red-400 transition-all hover:border-red-500/40 hover:bg-red-500/10"
+              >
+                {t('python.reinstall')}
               </button>
             )}
             {isInstalled && !loading && (

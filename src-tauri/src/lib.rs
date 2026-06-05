@@ -609,9 +609,17 @@ pub fn run() {
                 std::fs::write(&conf_path, default_config).ok();
             }
 
-            // 自动启动服务（仅在 venv 已安装时）
+            // 自动启动服务（仅在 openviking 已安装时）
             let auto_start_handle = app.handle().clone();
-            let should_auto_start = !state.venv_path.lock().unwrap().is_empty();
+            let venv_path_val = state.venv_path.lock().unwrap().clone();
+            let should_auto_start = if !venv_path_val.is_empty() {
+                python_env::pip_show_openviking(&state.uv_path, &venv_path_val)
+                    .ok()
+                    .flatten()
+                    .is_some()
+            } else {
+                false
+            };
             if should_auto_start {
                 tauri::async_runtime::spawn(async move {
                     let _ = process::spawn_server_with_app_handle(&auto_start_handle).await;

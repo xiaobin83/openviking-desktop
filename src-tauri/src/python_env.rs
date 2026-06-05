@@ -51,22 +51,6 @@ fn run_uv(
         });
     }
 
-    if let Some(stdout) = child.stdout.take() {
-        let reader = BufReader::new(stdout);
-        for line in reader.lines() {
-            if let Ok(line) = line {
-                if !line.is_empty() {
-                    let _ = app.emit("python-task-progress", ProgressPayload {
-                        step: step.to_string(),
-                        message: message.to_string(),
-                        done: false,
-                        log_line: line,
-                    });
-                }
-            }
-        }
-    }
-
     let status = child.wait().map_err(|e| format!("等待 uv 完成失败: {}", e))?;
     if !status.success() {
         return Err(format!(
