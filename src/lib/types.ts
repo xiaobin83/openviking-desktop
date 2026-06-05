@@ -47,6 +47,7 @@ export interface DenseEmbeddingConfig {
   dimension?: number;
   input?: string;
   batch_size?: number;
+  model_path?: string;
   query_param?: string;
   document_param?: string;
   extra_headers?: Record<string, string>;
