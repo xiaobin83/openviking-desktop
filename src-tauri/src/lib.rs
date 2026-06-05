@@ -469,6 +469,41 @@ async fn open_playground(app: tauri::AppHandle, state: tauri::State<'_, ServerSt
     Ok("ok".to_string())
 }
 
+fn resolve_bundled_model_path_inner(app: &tauri::AppHandle) -> String {
+    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let root_dir = manifest_dir.parent().unwrap_or(manifest_dir);
+    let dev_path = root_dir
+        .join("resources/models/bge-small-zh-v1.5-f16.gguf");
+    let symlink_path = manifest_dir
+        .join("Resources/models/bge-small-zh-v1.5-f16.gguf");
+    let resource_dir = app.path().resource_dir()
+        .expect("failed to resolve resource dir");
+    let prod_path = resource_dir
+        .join("models/bge-small-zh-v1.5-f16.gguf");
+    let path = if dev_path.exists() { dev_path }
+               else if symlink_path.exists() { symlink_path }
+               else { prod_path };
+    path.to_string_lossy().to_string()
+}
+
+#[tauri::command]
+fn resolve_bundled_model_path(app: tauri::AppHandle) -> Result<String, String> {
+    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let root_dir = manifest_dir.parent().unwrap_or(manifest_dir);
+    let dev_path = root_dir
+        .join("resources/models/bge-small-zh-v1.5-f16.gguf");
+    let symlink_path = manifest_dir
+        .join("Resources/models/bge-small-zh-v1.5-f16.gguf");
+    let resource_dir = app.path().resource_dir()
+        .map_err(|e| format!("failed to resolve resource dir: {}", e))?;
+    let prod_path = resource_dir
+        .join("models/bge-small-zh-v1.5-f16.gguf");
+    let path = if dev_path.exists() { dev_path }
+               else if symlink_path.exists() { symlink_path }
+               else { prod_path };
+    Ok(path.to_string_lossy().to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     env_logger::init();
@@ -562,15 +597,20 @@ pub fn run() {
             let conf_path = get_ov_conf_path(&state);
             if !std::path::Path::new(&conf_path).exists() {
                 log::info!("Generating default ov.conf at {}", conf_path);
-                let default_config = r#"{
-  "server": { "host": "127.0.0.1", "port": 1933, "cors_origins": ["*"] },
-  "storage": { "workspace": "~/.openviking/data", "vectordb": { "backend": "local" }, "agfs": { "backend": "local" } },
-  "embedding": { "dense": { "dimension": 1024, "batch_size": 32 }, "max_concurrent": 10, "max_retries": 3, "circuit_breaker": { "failure_threshold": 5, "reset_timeout": 60, "max_reset_timeout": 600 } },
-  "vlm": { "max_retries": 3, "max_concurrent": 100, "timeout": 60.0, "thinking": false, "stream": false },
-  "encryption": { "enabled": false },
-  "log": { "level": "INFO" },
-  "feishu": { "domain": "https://open.feishu.cn", "max_rows_per_sheet": 1000, "max_records_per_table": 1000 }
-}"#;
+                let model_path = resolve_bundled_model_path_inner(app.handle());
+                let default_config = serde_json::json!({
+                    "server": { "host": "127.0.0.1", "port": 1933, "cors_origins": ["*"] },
+                    "storage": { "workspace": "~/.openviking/data", "vectordb": { "backend": "local" }, "agfs": { "backend": "local" } },
+                    "embedding": {
+                        "dense": { "provider": "local", "model": "bge-small-zh-v1.5-f16", "model_path": model_path },
+                        "max_concurrent": 10, "max_retries": 3,
+                        "circuit_breaker": { "failure_threshold": 5, "reset_timeout": 60, "max_reset_timeout": 600 }
+                    },
+                    "vlm": { "max_retries": 3, "max_concurrent": 100, "timeout": 60.0, "thinking": false, "stream": false },
+                    "encryption": { "enabled": false },
+                    "log": { "level": "INFO" },
+                    "feishu": { "domain": "https://open.feishu.cn", "max_rows_per_sheet": 1000, "max_records_per_table": 1000 }
+                }).to_string();
                 if let Some(parent) = std::path::Path::new(&conf_path).parent() {
                     std::fs::create_dir_all(parent).ok();
                 }
@@ -606,6 +646,7 @@ pub fn run() {
             get_python_versions,
             get_uv_path,
             open_playground,
+            resolve_bundled_model_path,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
