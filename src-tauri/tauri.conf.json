@@ -35,7 +35,8 @@
       "icons/icon.icns"
     ],
     "resources": [
-      "Resources/uv/**/*"
+      "Resources/uv/**/*",
+      "Resources/models/**/*"
     ],
     "macOS": {
       "minimumSystemVersion": "14.0"
