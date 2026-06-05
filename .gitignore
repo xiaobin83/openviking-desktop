@@ -10,7 +10,7 @@ resources/uv/
 src-tauri/Resources/uv/
 
 # GGUF models (downloaded by scripts/download-gguf.sh)
-src-tauri/resources/models/*.gguf
+src-tauri/Resources/models/*.gguf
 
 # development artifacts
 .superpowers/

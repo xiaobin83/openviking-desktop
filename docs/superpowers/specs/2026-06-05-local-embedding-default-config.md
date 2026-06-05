@@ -91,7 +91,7 @@ Status: 已批准进入实现
 #### 文件位置
 
 ```
-src-tauri/resources/models/bge-small-zh-v1.5-f16.gguf
+src-tauri/Resources/models/bge-small-zh-v1.5-f16.gguf
 ```
 
 #### Tauri bundle 配置
@@ -111,13 +111,13 @@ src-tauri/resources/models/bge-small-zh-v1.5-f16.gguf
 
 - 下载源：`https://huggingface.co/CompendiumLabs/bge-small-zh-v1.5-gguf/resolve/main/bge-small-zh-v1.5-f16.gguf`
 - 支持 `GGUF_MODEL` 环境变量指定其他模型
-- 输出到 `src-tauri/resources/models/` 目录
+- 输出到 `src-tauri/Resources/models/` 目录
 
 #### Rust 资源解析
 
 参照现有 uv 路径解析模式，新增 `resolve_bundled_model_path` Tauri command：
 
-1. 开发模式：`<project>/src-tauri/resources/models/bge-small-zh-v1.5-f16.gguf`
+1. 开发模式：`<manifest_dir>/Resources/models/bge-small-zh-v1.5-f16.gguf`
 2. 生产模式：`<resource_dir>/models/bge-small-zh-v1.5-f16.gguf`
 
 返回绝对路径字符串。

@@ -471,17 +471,13 @@ async fn open_playground(app: tauri::AppHandle, state: tauri::State<'_, ServerSt
 
 fn resolve_bundled_model_path_inner(app: &tauri::AppHandle) -> String {
     let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let root_dir = manifest_dir.parent().unwrap_or(manifest_dir);
-    let dev_path = root_dir
-        .join("resources/models/bge-small-zh-v1.5-f16.gguf");
-    let symlink_path = manifest_dir
+    let dev_path = manifest_dir
         .join("Resources/models/bge-small-zh-v1.5-f16.gguf");
     let resource_dir = app.path().resource_dir()
         .expect("failed to resolve resource dir");
     let prod_path = resource_dir
         .join("models/bge-small-zh-v1.5-f16.gguf");
     let path = if dev_path.exists() { dev_path }
-               else if symlink_path.exists() { symlink_path }
                else { prod_path };
     path.to_string_lossy().to_string()
 }
@@ -489,17 +485,13 @@ fn resolve_bundled_model_path_inner(app: &tauri::AppHandle) -> String {
 #[tauri::command]
 fn resolve_bundled_model_path(app: tauri::AppHandle) -> Result<String, String> {
     let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let root_dir = manifest_dir.parent().unwrap_or(manifest_dir);
-    let dev_path = root_dir
-        .join("resources/models/bge-small-zh-v1.5-f16.gguf");
-    let symlink_path = manifest_dir
+    let dev_path = manifest_dir
         .join("Resources/models/bge-small-zh-v1.5-f16.gguf");
     let resource_dir = app.path().resource_dir()
         .map_err(|e| format!("failed to resolve resource dir: {}", e))?;
     let prod_path = resource_dir
         .join("models/bge-small-zh-v1.5-f16.gguf");
     let path = if dev_path.exists() { dev_path }
-               else if symlink_path.exists() { symlink_path }
                else { prod_path };
     Ok(path.to_string_lossy().to_string())
 }
