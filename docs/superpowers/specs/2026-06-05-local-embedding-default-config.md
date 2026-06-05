@@ -105,6 +105,14 @@ src-tauri/resources/models/bge-small-zh-v1.5-f16.gguf
 ]
 ```
 
+#### 模型下载脚本
+
+`scripts/download-gguf.sh` — 从 HuggingFace 下载 GGUF 模型到 `src-tauri/resources/models/`：
+
+- 下载源：`https://huggingface.co/CompendiumLabs/bge-small-zh-v1.5-gguf/resolve/main/bge-small-zh-v1.5-f16.gguf`
+- 支持 `GGUF_MODEL` 环境变量指定其他模型
+- 输出到 `src-tauri/resources/models/` 目录
+
 #### Rust 资源解析
 
 参照现有 uv 路径解析模式，新增 `resolve_bundled_model_path` Tauri command：
@@ -141,6 +149,12 @@ src-tauri/resources/models/bge-small-zh-v1.5-f16.gguf
 | `ai.dense_provider_desc` | embedding provider：local（默认） / volcengine / openai / jina / gemini / dashscope / vikingdb。选择 local 时无需 API 密钥。 | embedding provider: local (default) / volcengine / openai / jina / gemini / dashscope / vikingdb. No API key needed for local. |
 
 注：`model` 字段的 label/description 复用已有 `ai.model` / `ai.dense_model_desc`，不做修改。
+
+### 脚本变更
+
+| 文件 | 变更 |
+|------|------|
+| `scripts/download-gguf.sh` | 新增：从 HuggingFace 下载 GGUF 模型到 `src-tauri/resources/models/` |
 
 ### Rust 后端变更
 
