@@ -8,6 +8,7 @@ import AITab from './AITab';
 import StorageTab from './StorageTab';
 import AdvancedTab from './AdvancedTab';
 import FeishuTab from './FeishuTab';
+import EmbeddingModal from './EmbeddingModal';
 
 type SubTab = 'basic' | 'ai' | 'storage' | 'advanced' | 'feishu';
 
@@ -42,6 +43,8 @@ export default function ConfigPage() {
   const [workspace, setWorkspace] = useState('');
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [embeddingModalOpen, setEmbeddingModalOpen] = useState(false);
+  const [isEmbeddingRebuilding, setIsEmbeddingRebuilding] = useState(false);
 
   const loadConfig = () => {
     invoke<string>('read_config')
@@ -155,10 +158,29 @@ export default function ConfigPage() {
           onApplyWorkspace={handleApplyWorkspace}
         />
       )}
-      {activeSubTab === 'ai' && <AITab config={config} onChange={setConfig} />}
+      {activeSubTab === 'ai' && (
+        <AITab
+          config={config}
+          onChange={setConfig}
+          isEmbeddingRebuilding={isEmbeddingRebuilding}
+          onOpenEmbeddingModal={() => setEmbeddingModalOpen(true)}
+        />
+      )}
       {activeSubTab === 'storage' && <StorageTab config={config} onChange={setConfig} />}
       {activeSubTab === 'advanced' && <AdvancedTab config={config} onChange={setConfig} />}
       {activeSubTab === 'feishu' && <FeishuTab config={config} onChange={setConfig} />}
+
+      <EmbeddingModal
+        config={config}
+        open={embeddingModalOpen}
+        onClose={(saved) => {
+          setEmbeddingModalOpen(false);
+          setIsEmbeddingRebuilding(false);
+          if (saved) {
+            loadConfig();
+          }
+        }}
+      />
 
       <div className="pt-4 border-t border-border-subtle flex items-center gap-3">
         <button
