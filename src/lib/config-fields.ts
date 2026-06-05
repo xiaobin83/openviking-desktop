@@ -40,6 +40,14 @@ const FIELDS: ConfigField[] = [
     max: 65535,
   },
   {
+    path: 'server.root_api_key',
+    label: 'basic.root_api_key',
+    description: 'basic.root_api_key_desc',
+    type: 'password',
+    tab: 'basic',
+    defaultValue: null,
+  },
+  {
     path: 'storage.workspace',
     label: 'basic.storage_path',
     description: 'basic.storage_path_desc',
@@ -62,15 +70,6 @@ const FIELDS: ConfigField[] = [
       { label: 'ERROR', value: 'ERROR' },
     ],
   },
-  {
-    path: 'server.root_api_key',
-    label: 'basic.root_api_key',
-    description: 'basic.root_api_key_desc',
-    type: 'password',
-    tab: 'basic',
-    defaultValue: null,
-  },
-
   // ===== AI Tab - Dense Embedding =====
   {
     path: 'embedding.dense.provider',

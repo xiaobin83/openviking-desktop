@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-RESOURCES_DIR="$SCRIPT_DIR/../resources/uv"
+RESOURCES_DIR="$SCRIPT_DIR/../src-tauri/Resources/uv"
 
 UV_VERSION="${UV_VERSION:-0.11.17}"
 GH_REPO="astral-sh/uv"
@@ -69,7 +69,7 @@ if [[ "$ARCHIVE_EXT" == "zip" ]]; then
   unzip -q -o "$TEMP_DIR/$ARCHIVE" -d "$TEMP_DIR/extract"
   mv "$TEMP_DIR/extract"/*/"${BINARY_NAME}" "$TARGET_DIR/${BINARY_NAME}" 2>/dev/null || mv "$TEMP_DIR/extract/${BINARY_NAME}" "$TARGET_DIR/${BINARY_NAME}" 2>/dev/null
 else
-  tar xzf "$TEMP_DIR/$ARCHIVE" -C "$TEMP_DIR"
+  tar xzf "$TEMP_DIR/$ARCHIVE" --strip-components=1 -C "$TEMP_DIR"
   mv "$TEMP_DIR/${BINARY_NAME}" "$TARGET_DIR/${BINARY_NAME}" 2>/dev/null
 fi
 
