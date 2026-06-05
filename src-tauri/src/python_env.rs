@@ -137,7 +137,7 @@ pub fn pip_install_openviking(
         run_uv(
             app,
             uv_path,
-            &["pip", "install", "--python", venv_python, "--upgrade", "openviking[bot]"],
+            &["pip", "install", "--python", venv_python, "--upgrade", "openviking[bot,local-embed]"],
             "upgrading",
             "升级 OpenViking...",
         )
@@ -145,7 +145,7 @@ pub fn pip_install_openviking(
         run_uv(
             app,
             uv_path,
-            &["pip", "install", "--python", venv_python, "openviking[bot]"],
+            &["pip", "install", "--python", venv_python, "openviking[bot,local-embed]"],
             "installing",
             "安装 OpenViking...",
         )
