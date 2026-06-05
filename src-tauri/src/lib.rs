@@ -84,6 +84,14 @@ pub fn get_ov_conf_path(state: &ServerState) -> String {
     }
 }
 
+fn get_ov_conf_dir(state: &ServerState) -> String {
+    let conf_path = crate::get_ov_conf_path(state);
+    std::path::Path::new(&conf_path)
+        .parent()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| "/tmp".to_string())
+}
+
 #[tauri::command]
 async fn read_config(state: tauri::State<'_, ServerState>) -> Result<String, String> {
     let ov_conf_path = get_ov_conf_path(&state);
@@ -496,6 +504,97 @@ fn resolve_bundled_model_path(app: tauri::AppHandle) -> Result<String, String> {
     Ok(path.to_string_lossy().to_string())
 }
 
+#[tauri::command]
+fn resolve_vectordb_path(state: tauri::State<'_, ServerState>) -> Result<String, String> {
+    let workspace = state.workspace_path.lock().unwrap().clone();
+    let expanded = if workspace.is_empty() {
+        expand_tilde("~/.openviking/data")
+    } else {
+        workspace
+    };
+    let mut vdb_path = std::path::PathBuf::from(&expanded);
+    vdb_path.push("vectordb");
+    Ok(vdb_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn delete_directory(path: String) -> Result<(), String> {
+    let p = std::path::Path::new(&path);
+    if !p.exists() {
+        return Ok(());
+    }
+    std::fs::remove_dir_all(&p)
+        .map_err(|e| format!("删除目录失败 {}: {}", path, e))
+}
+
+#[tauri::command]
+fn check_port(port: u16) -> Result<bool, String> {
+    let addr = format!("127.0.0.1:{}", port);
+    match std::net::TcpStream::connect_timeout(
+        &addr.parse().map_err(|e| format!("地址解析失败: {}", e))?,
+        std::time::Duration::from_secs(1),
+    ) {
+        Ok(_) => Ok(true),
+        Err(_) => Ok(false),
+    }
+}
+
+#[tauri::command]
+fn kill_port_process(port: u16) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let output = std::process::Command::new("cmd")
+            .args(&["/C", &format!("for /f \"tokens=5\" %a in ('netstat -ano ^| findstr :{}') do taskkill /F /PID %a", port)])
+            .output()
+            .map_err(|e| format!("执行命令失败: {}", e))?;
+        if !output.status.success() {
+            log::warn!("kill_port_process (Windows) 可能未完全清理: {}", String::from_utf8_lossy(&output.stderr));
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _output = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(&format!("lsof -ti :{} | xargs kill -9 2>/dev/null", port))
+            .output()
+            .map_err(|e| format!("执行命令失败: {}", e))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn read_rebuild_lock(state: tauri::State<'_, ServerState>) -> Result<Option<String>, String> {
+    let dir = get_ov_conf_dir(&state);
+    let lock_path = std::path::Path::new(&dir).join("rebuild_lock.json");
+    if lock_path.exists() {
+        std::fs::read_to_string(&lock_path)
+            .map(Some)
+            .map_err(|e| format!("读取锁文件失败: {}", e))
+    } else {
+        Ok(None)
+    }
+}
+
+#[tauri::command]
+fn write_rebuild_lock(state: tauri::State<'_, ServerState>, content: String) -> Result<(), String> {
+    let dir = get_ov_conf_dir(&state);
+    let lock_path = std::path::Path::new(&dir).join("rebuild_lock.json");
+    std::fs::write(&lock_path, &content)
+        .map_err(|e| format!("写入锁文件失败: {}", e))
+}
+
+#[tauri::command]
+fn delete_rebuild_lock(state: tauri::State<'_, ServerState>) -> Result<(), String> {
+    let dir = get_ov_conf_dir(&state);
+    let lock_path = std::path::Path::new(&dir).join("rebuild_lock.json");
+    if lock_path.exists() {
+        std::fs::remove_file(&lock_path)
+            .map_err(|e| format!("删除锁文件失败: {}", e))
+    } else {
+        Ok(())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     env_logger::init();
@@ -647,6 +746,13 @@ pub fn run() {
             get_uv_path,
             open_playground,
             resolve_bundled_model_path,
+            resolve_vectordb_path,
+            delete_directory,
+            check_port,
+            kill_port_process,
+            read_rebuild_lock,
+            write_rebuild_lock,
+            delete_rebuild_lock,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {

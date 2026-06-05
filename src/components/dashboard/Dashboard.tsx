@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [memStats, setMemStats] = useState<MemoryStats | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [pythonInstalled, setPythonInstalled] = useState(false);
+  const [rebuildLockExists, setRebuildLockExists] = useState(false);
 
   useEffect(() => {
     const unlisten = listen<string>('server-status-changed', (event) => {
@@ -27,6 +28,16 @@ export default function Dashboard() {
 
   useEffect(() => {
     invoke<string>('get_server_status').then(setServerStatus).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    invoke<string | null>('read_rebuild_lock')
+      .then((content) => {
+        if (content) {
+          setRebuildLockExists(true);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -98,6 +109,28 @@ export default function Dashboard() {
   return (
     <div className="space-y-5">
       <PythonEnvCard onStateChange={handlePythonStateChange} />
+      {rebuildLockExists && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-md px-4 py-3 text-sm text-amber-400 flex items-center gap-3">
+          <span className="flex-1">{t('dashboard.rebuild_incomplete')}</span>
+          <button
+            onClick={async () => {
+              try {
+                await invoke('stop_server');
+                const vdbPath = await invoke<string>('resolve_vectordb_path');
+                await invoke('delete_directory', { path: vdbPath });
+                await invoke('delete_rebuild_lock');
+                await invoke('start_server');
+                setRebuildLockExists(false);
+              } catch (err) {
+                console.error('Recovery rebuild failed:', err);
+              }
+            }}
+            className="px-3 py-1 bg-amber-500/20 text-amber-400 rounded-md hover:bg-amber-500/30 transition-colors"
+          >
+            {t('dashboard.rebuild_action')}
+          </button>
+        </div>
+      )}
       {pythonInstalled && (
         <>
       <div className="animate-slide-up flex items-center gap-3">

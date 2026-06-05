@@ -7,79 +7,44 @@ import ConfigGroup from './ConfigGroup';
 interface AITabProps {
   config: OvConfig;
   onChange: (config: OvConfig) => void;
+  isEmbeddingRebuilding?: boolean;
+  onOpenEmbeddingModal?: () => void;
 }
-
-const REMOTE_ONLY_FIELDS = new Set([
-  'embedding.dense.api_base',
-  'embedding.dense.api_key',
-  'embedding.dense.input',
-]);
-
-const DIMENSION_PATH = 'embedding.dense.dimension';
-const BATCH_SIZE_PATH = 'embedding.dense.batch_size';
 
 function ConfigFields({ config, onChange, group }: { config: OvConfig; onChange: (config: OvConfig) => void; group?: string }) {
   const fields = getFieldsByTab('ai').filter((f) => f.group === group);
-  const provider = config.embedding?.dense?.provider;
-  const isLocal = provider === 'local';
 
   const handleChange = (path: string, value: unknown) => {
-    let updated = updateConfig(config, path, value);
-
-    if (path === 'embedding.dense.provider') {
-      if (value === 'local') {
-        const dense = updated.embedding.dense as Record<string, unknown> | undefined;
-        if (dense) {
-          delete dense.dimension;
-          delete dense.batch_size;
-        }
-      } else {
-        updated.embedding.dense = {
-          ...updated.embedding.dense,
-          dimension: 1024,
-          batch_size: 32,
-        };
-      }
-    }
-
+    const updated = updateConfig(config, path, value);
     onChange(updated);
   };
 
   return (
     <>
-      {fields
-        .filter((f) => {
-          if (f.path === 'embedding.dense.provider') return true;
-          if (f.path === 'embedding.dense.model') return true;
-          if (f.path === 'embedding.dense.model_path') return true;
-          if (isLocal && REMOTE_ONLY_FIELDS.has(f.path)) return false;
-          if (isLocal && (f.path === DIMENSION_PATH || f.path === BATCH_SIZE_PATH)) return false;
-          return true;
-        })
-        .map((field) => {
-          const keys = field.path.split('.');
-          let value: unknown = config;
-          for (const key of keys) {
-            if (value == null || typeof value !== 'object') {
-              value = undefined;
-              break;
-            }
-            value = (value as Record<string, unknown>)[key];
+      {fields.map((field) => {
+        const keys = field.path.split('.');
+        let value: unknown = config;
+        for (const key of keys) {
+          if (value == null || typeof value !== 'object') {
+            value = undefined;
+            break;
           }
-          return (
-            <ConfigFieldRenderer
-              key={field.path}
-              field={field}
-              value={value}
-              onChange={handleChange}
-            />
-          );
-        })}
+          value = (value as Record<string, unknown>)[key];
+        }
+        return (
+          <ConfigFieldRenderer
+            key={field.path}
+            field={field}
+            value={value}
+            onChange={handleChange}
+          />
+        );
+      })}
     </>
   );
 }
 
-export default function AITab({ config, onChange }: AITabProps) {
+export default function AITab({ config, onChange, isEmbeddingRebuilding, onOpenEmbeddingModal }: AITabProps) {
   const { t } = useTranslation();
   const groups = getGroups('ai');
 
@@ -90,13 +55,51 @@ export default function AITab({ config, onChange }: AITabProps) {
     vlm: t('ai.vlm'),
   };
 
+  const dense = config.embedding?.dense;
+  const provider = dense?.provider ?? '-';
+  const model = dense?.model ?? '-';
+  const dimension = dense?.dimension ?? '-';
+
   return (
     <div className="space-y-4">
-      {groups.map((group) => (
-        <ConfigGroup key={group} title={groupLabels[group] ?? group}>
-          <ConfigFields config={config} onChange={onChange} group={group} />
-        </ConfigGroup>
-      ))}
+      {groups.map((group) => {
+        if (group === 'dense') {
+          return (
+            <ConfigGroup key={group} title={groupLabels[group] ?? group}>
+              <div className="space-y-1 text-sm">
+                <div className="flex gap-2">
+                  <span className="text-text-muted w-20">{t('ai.provider')}:</span>
+                  <span className="text-text-primary">{provider}</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="text-text-muted w-20">{t('ai.model')}:</span>
+                  <span className="text-text-primary">{model}</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="text-text-muted w-20">{t('ai.dimension')}:</span>
+                  <span className="text-text-primary">{dimension}</span>
+                </div>
+              </div>
+              <button
+                onClick={onOpenEmbeddingModal}
+                disabled={isEmbeddingRebuilding}
+                className="w-full px-4 py-2 mt-2 bg-aurora-500/15 text-aurora-400 rounded-md text-sm font-medium hover:bg-aurora-500/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isEmbeddingRebuilding ? (
+                  <span>{t('embedding_modal.rebuilding')}...</span>
+                ) : (
+                  t('ai.change_embedding')
+                )}
+              </button>
+            </ConfigGroup>
+          );
+        }
+        return (
+          <ConfigGroup key={group} title={groupLabels[group] ?? group}>
+            <ConfigFields config={config} onChange={onChange} group={group} />
+          </ConfigGroup>
+        );
+      })}
     </div>
   );
 }
