@@ -26,7 +26,7 @@ OpenViking 的桌面管理控制台，基于 **Tauri v2** + **React** + **TypeSc
 | 字体 | Plus Jakarta Sans / JetBrains Mono |
 | 国际化 | i18next + react-i18next |
 | IPC | @tauri-apps/api (invoke / listen) |
-| 后端 | Python sidecar (OpenViking Service) |
+| 后端 | Python (OpenViking Service) — 运行时通过 uv 自动安装 |
 
 ## 快速开始
 
@@ -45,19 +45,21 @@ pnpm run build
 pnpm tauri build
 ```
 
-## 打包 Python 运行时
+## 打包 uv 运行时
 
-生产构建前，需要将 Python 运行时与 OpenViking 依赖打包到 `resources/python` 目录，供 Tauri sidecar 使用：
+生产构建前，需要将 `uv` 二进制文件下载到 `resources/uv` 目录，供 Tauri 内置使用：
 
 ```bash
-bash scripts/bundle-python.sh
+bash scripts/download-uv.sh --platform aarch64-apple-darwin
 ```
 
-该脚本会：
-1. 使用 `uv` 创建一个全新的 Python 3.12 虚拟环境
-2. 在虚拟环境中安装 `openviking` 及其所有依赖
-3. 清理 `__pycache__`、`.pyc`、`.pyo` 等缓存文件以减小体积
-4. 将打包后的环境输出到 `resources/python/` 目录
+支持的平台：
+- `aarch64-apple-darwin`
+- `x86_64-apple-darwin`
+- `x86_64-pc-windows-msvc`
+- `x86_64-unknown-linux-gnu`
+
+应用首次启动时，会自动使用 `uv` 下载对应 Python 版本、创建虚拟环境并安装 `openviking[bot]`，无需手动预打包。
 
 ## 项目结构
 
@@ -92,13 +94,14 @@ src-tauri/src/
 ├── main.rs                       # 应用入口
 ├── lib.rs                        # Tauri 命令与插件注册
 ├── process.rs                    # 子进程管理（Python sidecar）
+├── python_env.rs                 # uv/Python 环境管理
 └── tray.rs                       # 系统托盘功能
 
 scripts/
-└── bundle-python.sh              # Python 虚拟环境打包脚本
+└── download-uv.sh                 # uv 二进制下载脚本
 
 resources/
-└── python/                       # 打包后的 Python 运行时（gitignored）
+└── uv/                            # 各平台 uv 二进制（gitignored）
 ```
 
 ## 开发说明
