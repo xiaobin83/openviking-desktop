@@ -30,12 +30,14 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (serverStatus === 'error' || serverStatus === 'timeout') {
+    if (serverStatus === 'error') {
       invoke<string>('get_last_error').then(setErrorMessage).catch(() => {});
+    } else if (serverStatus === 'timeout') {
+      setErrorMessage(t('status.timeout_message'));
     } else {
       setErrorMessage('');
     }
-  }, [serverStatus]);
+  }, [serverStatus, t]);
 
   useEffect(() => {
     if (serverStatus !== 'running') return;

@@ -130,11 +130,16 @@ pub async fn spawn_server(
                 state_log_path,
             );
         } else {
-            if let Some(s) = app_for_health.try_state::<ServerState>() {
-                *s.status.lock().unwrap() = "timeout".to_string();
-                *s.last_error.lock().unwrap() = "服务启动超时（30 秒），请检查 Python 服务和配置是否正确".to_string();
+            let current = app_for_health.try_state::<ServerState>()
+                .map(|s| s.status.lock().unwrap().clone());
+            // 如果用户已主动停止，不覆盖状态
+            if current.as_deref() == Some("starting") {
+                if let Some(s) = app_for_health.try_state::<ServerState>() {
+                    *s.status.lock().unwrap() = "timeout".to_string();
+                    *s.last_error.lock().unwrap() = "服务启动超时（30 秒），请检查 Python 服务和配置是否正确".to_string();
+                }
+                let _ = app_for_health.emit("server-status-changed", "timeout");
             }
-            let _ = app_for_health.emit("server-status-changed", "timeout");
         }
     });
 
