@@ -6,6 +6,7 @@ interface StatusCardProps {
   errorMessage: string;
   onToggle: () => void;
   onShowLog: () => void;
+  onShowAppLog?: () => void;
   onRebuildEmbedding?: () => void;
 }
 
@@ -47,7 +48,7 @@ const STATUS_CONFIG: Record<string, { labelKey: string; dot: string; ring: strin
   },
 };
 
-export default function StatusCard({ status, version, errorMessage, onToggle, onShowLog, onRebuildEmbedding }: StatusCardProps) {
+export default function StatusCard({ status, version, errorMessage, onToggle, onShowLog, onShowAppLog, onRebuildEmbedding }: StatusCardProps) {
   const { t } = useTranslation();
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.stopped;
   const isStopped = status === 'stopped' || status === 'error' || status === 'timeout';
@@ -78,8 +79,16 @@ export default function StatusCard({ status, version, errorMessage, onToggle, on
                 onClick={onShowLog}
                 className="rounded-lg border border-border-subtle bg-surface-elevated px-3 py-1 text-xs font-medium text-text-secondary transition-colors hover:border-border-active hover:text-text-primary"
               >
-                Show Log
+                {t('status.show_server_log')}
               </button>
+              {onShowAppLog && (
+                <button
+                  onClick={onShowAppLog}
+                  className="rounded-lg border border-border-subtle bg-surface-elevated px-3 py-1 text-xs font-medium text-text-secondary transition-colors hover:border-border-active hover:text-text-primary"
+                >
+                  {t('status.show_app_log')}
+                </button>
+              )}
               {onRebuildEmbedding && (
                 <button
                   onClick={onRebuildEmbedding}

@@ -2,6 +2,7 @@ use tauri::{Emitter, Manager};
 use tauri_plugin_opener::OpenerExt;
 use std::sync::Mutex;
 use std::process::Child;
+use std::io::Write;
 
 mod process;
 mod python_env;
@@ -13,6 +14,33 @@ fn get_home_dir() -> std::path::PathBuf {
     dirs::home_dir().expect("no home dir")
 }
 
+struct FileAndConsoleLogger {
+    file: Mutex<std::fs::File>,
+}
+
+impl log::Log for FileAndConsoleLogger {
+    fn enabled(&self, metadata: &log::Metadata) -> bool {
+        metadata.level() <= log::Level::Info
+    }
+
+    fn log(&self, record: &log::Record) {
+        if !self.enabled(record.metadata()) {
+            return;
+        }
+        let msg = format!("[{}] {}", record.level(), record.args());
+        if let Ok(mut file) = self.file.lock() {
+            let _ = writeln!(file, "{}", msg);
+        }
+        eprintln!("{}", msg);
+    }
+
+    fn flush(&self) {
+        if let Ok(mut file) = self.file.lock() {
+            let _ = file.flush();
+        }
+    }
+}
+
 pub struct ServerState {
     pub child: Mutex<Option<Child>>,
     pub status: Mutex<String>,
@@ -20,6 +48,7 @@ pub struct ServerState {
     pub venv_path: Mutex<String>,
     pub workspace_path: Mutex<String>,
     pub server_log_path: String,
+    pub desktop_log_path: String,
     pub last_error: Mutex<String>,
     pub uv_path: String,
     pub openviking_version: Mutex<String>,
@@ -155,6 +184,16 @@ async fn open_log_file(state: tauri::State<'_, ServerState>) -> Result<String, S
         .arg(path)
         .spawn()
         .map_err(|e| format!("打开日志文件失败: {}", e))?;
+    Ok("ok".to_string())
+}
+
+#[tauri::command]
+async fn open_app_log_file(state: tauri::State<'_, ServerState>) -> Result<String, String> {
+    let path = &state.desktop_log_path;
+    std::process::Command::new("open")
+        .arg(path)
+        .spawn()
+        .map_err(|e| format!("打开应用日志失败: {}", e))?;
     Ok("ok".to_string())
 }
 
@@ -597,14 +636,29 @@ fn delete_rebuild_lock(state: tauri::State<'_, ServerState>) -> Result<(), Strin
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    env_logger::init();
-
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            let home = get_home_dir();
+            let desktop_log_path = home
+                .join("Library/Logs/OpenViking/openviking-desktop.log")
+                .to_string_lossy()
+                .to_string();
+            if let Some(parent) = std::path::Path::new(&desktop_log_path).parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            if let Ok(file) = std::fs::File::create(&desktop_log_path) {
+                log::set_boxed_logger(Box::new(FileAndConsoleLogger { file: Mutex::new(file) }))
+                    .map(|()| log::set_max_level(log::LevelFilter::Info))
+                    .ok();
+                log::info!("app log: {}", desktop_log_path);
+            } else {
+                env_logger::init();
+            }
+
             let target_arch = std::env::consts::ARCH;
             let target_os = std::env::consts::OS;
             let target_triple = match (target_arch, target_os) {
@@ -648,7 +702,6 @@ pub fn run() {
             };
             log::info!("venv path: {}", if venv_path.is_empty() { "(not installed)" } else { &venv_path });
 
-            let home = get_home_dir();
             let server_log_path = home
                 .join("Library/Logs/OpenViking/openviking.log")
                 .to_string_lossy()
@@ -675,7 +728,8 @@ pub fn run() {
                 port: Mutex::new(1933),
                 venv_path: Mutex::new(venv_path),
                 workspace_path: Mutex::new(expanded_workspace_path),
-                server_log_path,
+                server_log_path: server_log_path,
+                desktop_log_path: desktop_log_path.clone(),
                 last_error: Mutex::new(String::new()),
                 uv_path,
                 openviking_version: Mutex::new(String::new()),
@@ -738,6 +792,7 @@ pub fn run() {
             set_workspace,
             read_server_log,
             open_log_file,
+            open_app_log_file,
             check_openviking_state,
             install_openviking,
             upgrade_openviking,
