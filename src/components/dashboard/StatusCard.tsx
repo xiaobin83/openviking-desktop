@@ -6,6 +6,7 @@ interface StatusCardProps {
   errorMessage: string;
   onToggle: () => void;
   onShowLog: () => void;
+  onRebuildEmbedding?: () => void;
 }
 
 const STATUS_CONFIG: Record<string, { labelKey: string; dot: string; ring: string; badge: string; pulseColor: string }> = {
@@ -46,7 +47,7 @@ const STATUS_CONFIG: Record<string, { labelKey: string; dot: string; ring: strin
   },
 };
 
-export default function StatusCard({ status, version, errorMessage, onToggle, onShowLog }: StatusCardProps) {
+export default function StatusCard({ status, version, errorMessage, onToggle, onShowLog, onRebuildEmbedding }: StatusCardProps) {
   const { t } = useTranslation();
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.stopped;
   const isStopped = status === 'stopped' || status === 'error' || status === 'timeout';
@@ -73,12 +74,22 @@ export default function StatusCard({ status, version, errorMessage, onToggle, on
               <p className="mt-1 text-xs text-red-400/80">{errorMessage}</p>
             )}
             {(status === 'error' || status === 'timeout') && (
-              <button
-                onClick={onShowLog}
-                className="mt-2 rounded-lg border border-border-subtle bg-surface-elevated px-3 py-1 text-xs font-medium text-text-secondary transition-colors hover:border-border-active hover:text-text-primary"
-              >
-                Show Log
-              </button>
+              <div className="mt-2 flex gap-2">
+                <button
+                  onClick={onShowLog}
+                  className="rounded-lg border border-border-subtle bg-surface-elevated px-3 py-1 text-xs font-medium text-text-secondary transition-colors hover:border-border-active hover:text-text-primary"
+                >
+                  Show Log
+                </button>
+                {onRebuildEmbedding && (
+                  <button
+                    onClick={onRebuildEmbedding}
+                    className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-400 transition-colors hover:border-amber-500/30 hover:bg-amber-500/20"
+                  >
+                    {t('status.rebuild_embedding')}
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>

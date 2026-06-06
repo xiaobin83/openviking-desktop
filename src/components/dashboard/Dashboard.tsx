@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [pythonInstalled, setPythonInstalled] = useState(false);
   const [rebuildLockExists, setRebuildLockExists] = useState(false);
+  const [embeddingRebuildNeeded, setEmbeddingRebuildNeeded] = useState(false);
 
   useEffect(() => {
     const unlisten = listen<string>('server-status-changed', (event) => {
@@ -45,8 +46,16 @@ export default function Dashboard() {
       invoke<string>('get_last_error').then(setErrorMessage).catch(() => {});
     } else if (serverStatus === 'timeout') {
       setErrorMessage(t('status.timeout_message'));
+      invoke<string>('read_server_log')
+        .then((log) => {
+          if (log.includes('EmbeddingRebuildRequiredError')) {
+            setEmbeddingRebuildNeeded(true);
+          }
+        })
+        .catch(() => {});
     } else {
       setErrorMessage('');
+      setEmbeddingRebuildNeeded(false);
     }
   }, [serverStatus, t]);
 
@@ -106,6 +115,19 @@ export default function Dashboard() {
     setPythonInstalled(state.installed);
   };
 
+  const handleRebuildEmbedding = async () => {
+    try {
+      await invoke('stop_server');
+      const vdbPath = await invoke<string>('resolve_vectordb_path');
+      await invoke('delete_directory', { path: vdbPath });
+      setEmbeddingRebuildNeeded(false);
+      setServerStatus('starting');
+      await invoke('start_server');
+    } catch (err) {
+      console.error('Embedding rebuild failed:', err);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <PythonEnvCard onStateChange={handlePythonStateChange} />
@@ -157,6 +179,7 @@ export default function Dashboard() {
             errorMessage={errorMessage}
             onToggle={handleToggleServer}
             onShowLog={() => invoke('open_log_file')}
+            onRebuildEmbedding={embeddingRebuildNeeded ? handleRebuildEmbedding : undefined}
           />
         </div>
       </div>
