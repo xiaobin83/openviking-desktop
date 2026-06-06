@@ -580,24 +580,7 @@ fn check_port(port: u16) -> Result<bool, String> {
 
 #[tauri::command]
 fn kill_port_process(port: u16) -> Result<(), String> {
-    #[cfg(target_os = "windows")]
-    {
-        let output = std::process::Command::new("cmd")
-            .args(&["/C", &format!("for /f \"tokens=5\" %a in ('netstat -ano ^| findstr :{}') do taskkill /F /PID %a", port)])
-            .output()
-            .map_err(|e| format!("执行命令失败: {}", e))?;
-        if !output.status.success() {
-            log::warn!("kill_port_process (Windows) 可能未完全清理: {}", String::from_utf8_lossy(&output.stderr));
-        }
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        let _output = std::process::Command::new("sh")
-            .arg("-c")
-            .arg(&format!("lsof -ti :{} | xargs kill -9 2>/dev/null", port))
-            .output()
-            .map_err(|e| format!("执行命令失败: {}", e))?;
-    }
+    crate::process::cleanup_port(port);
     Ok(())
 }
 
