@@ -50,6 +50,7 @@ pub async fn spawn_server(
     {
         let mut child_opt = state.child.lock().unwrap();
         if let Some(ref mut c) = *child_opt {
+            log::info!("spawn_server: killing existing child (PID={})", c.id());
             kill_child(c);
         }
         *child_opt = None;
@@ -95,7 +96,8 @@ pub async fn spawn_server(
         msg
     })?;
 
-    log::info!("服务进程已启动 (PID={})", child.id());
+    log::info!("spawn_server: python={} config={} port={} pid={}",
+        python_path, get_ov_conf_path(state), port, child.id());
 
     *state.child.lock().unwrap() = Some(child);
 
@@ -294,6 +296,7 @@ fn start_runtime_health_monitor(
             if let Some(s) = app.try_state::<ServerState>() {
                 let mut child_opt = s.child.lock().unwrap();
                 if let Some(ref mut c) = *child_opt {
+                    log::info!("健康监控: killing existing child (PID={})", c.id());
                     kill_child(c);
                 }
                 *child_opt = None;
@@ -358,6 +361,7 @@ fn start_runtime_health_monitor(
             if let Some(s) = app.try_state::<ServerState>() {
                 *s.child.lock().unwrap() = Some(child);
             }
+            log::info!("健康监控: restarted new process");
 
             // 等待新进程健康检查就绪（更短的超时时间）
             let restart_start = std::time::Instant::now();
