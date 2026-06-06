@@ -73,24 +73,22 @@ export default function StatusCard({ status, version, errorMessage, onToggle, on
             {(status === 'error' || status === 'timeout') && errorMessage && (
               <p className="mt-1 text-xs text-red-400/80">{errorMessage}</p>
             )}
-            {(status === 'error' || status === 'timeout') && (
-              <div className="mt-2 flex gap-2">
+            <div className="mt-2 flex gap-2">
+              <button
+                onClick={onShowLog}
+                className="rounded-lg border border-border-subtle bg-surface-elevated px-3 py-1 text-xs font-medium text-text-secondary transition-colors hover:border-border-active hover:text-text-primary"
+              >
+                Show Log
+              </button>
+              {onRebuildEmbedding && (
                 <button
-                  onClick={onShowLog}
-                  className="rounded-lg border border-border-subtle bg-surface-elevated px-3 py-1 text-xs font-medium text-text-secondary transition-colors hover:border-border-active hover:text-text-primary"
+                  onClick={onRebuildEmbedding}
+                  className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-400 transition-colors hover:border-amber-500/30 hover:bg-amber-500/20"
                 >
-                  Show Log
+                  {t('status.rebuild_embedding')}
                 </button>
-                {onRebuildEmbedding && (
-                  <button
-                    onClick={onRebuildEmbedding}
-                    className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-400 transition-colors hover:border-amber-500/30 hover:bg-amber-500/20"
-                  >
-                    {t('status.rebuild_embedding')}
-                  </button>
-                )}
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
