@@ -216,13 +216,13 @@ fn open_console(state: tauri::State<'_, ServerState>) -> Result<(), String> {
     {
         let cmd = if let Some(activate_path) = activate {
             format!(
-                "tell application \"Terminal\" to do script \"cd {} && source {}\"",
+                "tell application \"Terminal\" to do script \"cd \\\"{}\\\" && source \\\"{}\\\"\"",
                 workspace,
                 activate_path.to_string_lossy()
             )
         } else {
             format!(
-                "tell application \"Terminal\" to do script \"cd {}\"",
+                "tell application \"Terminal\" to do script \"cd \\\"{}\\\"\"",
                 workspace
             )
         };
