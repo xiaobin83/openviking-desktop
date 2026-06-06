@@ -90,7 +90,7 @@ pub async fn spawn_server(
         command.process_group(0);
     }
 
-    // 设置 VIRTUAL_ENV 环境变量，让 Python 子进程能正确识别虚拟环境
+    // 设置 VIRTUAL_ENV 环境变量并修改 PATH，让 Python 子进程能正确识别虚拟环境
     let venv_root = std::path::Path::new(&python_path)
         .parent()
         .and_then(|p| p.parent())
@@ -98,6 +98,12 @@ pub async fn spawn_server(
         .unwrap_or_default();
     if !venv_root.is_empty() {
         command.env("VIRTUAL_ENV", &venv_root);
+        // 将 venv/bin 追加到 PATH
+        let venv_bin = std::path::Path::new(&venv_root).join("bin");
+        if let Ok(existing_path) = std::env::var("PATH") {
+            let new_path = format!("{}:{}", venv_bin.to_string_lossy(), existing_path);
+            command.env("PATH", &new_path);
+        }
     }
 
     let child = command.spawn().map_err(|e| {
@@ -345,6 +351,11 @@ fn start_runtime_health_monitor(
                 .unwrap_or_default();
             if !venv_root.is_empty() {
                 command.env("VIRTUAL_ENV", &venv_root);
+                let venv_bin = std::path::Path::new(&venv_root).join("bin");
+                if let Ok(existing_path) = std::env::var("PATH") {
+                    let new_path = format!("{}:{}", venv_bin.to_string_lossy(), existing_path);
+                    command.env("PATH", &new_path);
+                }
             }
             command
                 .arg("-m")
