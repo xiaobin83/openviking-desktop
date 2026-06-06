@@ -127,6 +127,7 @@
   "status.not_running": "Service not running",
   "status.start": "Start Service",
   "status.stop": "Stop Service",
+  "status.rebuild_embedding": "Rebuild Embedding",
 
   "embedding_modal.title": "Change Embedding Model",
   "embedding_modal.warning": "Changing the embedding model requires rebuilding the vector database. Existing vectors will be lost.",
