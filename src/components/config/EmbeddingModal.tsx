@@ -65,11 +65,13 @@ export default function EmbeddingModal({ config, open, onClose }: EmbeddingModal
   const [error, setError] = useState<string | null>(null);
   const [failedStep, setFailedStep] = useState<number | null>(null);
   const abortRef = useRef(false);
+  const originalDenseRef = useRef<DenseEmbeddingConfig>({});
 
   useEffect(() => {
     if (open) {
       setStep('edit');
       setLocalDense(structuredClone(config.embedding?.dense ?? {}));
+      originalDenseRef.current = structuredClone(config.embedding?.dense ?? {});
       setStepStates({
         stop: 'pending',
         verify_port: 'pending',
@@ -93,6 +95,12 @@ export default function EmbeddingModal({ config, open, onClose }: EmbeddingModal
           if (value === 'local') {
             delete updated.dimension;
             delete updated.batch_size;
+            delete updated.api_key;
+            delete updated.api_base;
+            delete updated.input;
+            if (!updated.model_path && originalDenseRef.current?.model_path) {
+              updated.model_path = originalDenseRef.current.model_path;
+            }
           } else {
             if (updated.dimension === undefined) updated.dimension = 1024;
             if (updated.batch_size === undefined) updated.batch_size = 32;
