@@ -178,6 +178,7 @@ export default function Dashboard() {
             version={version}
             errorMessage={errorMessage}
             onToggle={handleToggleServer}
+            onConsole={() => invoke('open_console')}
             onShowLog={() => invoke('open_log_file')}
             onShowAppLog={() => invoke('open_app_log_file')}
             onRebuildEmbedding={embeddingRebuildNeeded ? handleRebuildEmbedding : undefined}

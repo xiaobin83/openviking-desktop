@@ -5,6 +5,7 @@ interface StatusCardProps {
   version: string;
   errorMessage: string;
   onToggle: () => void;
+  onConsole?: () => void;
   onShowLog: () => void;
   onShowAppLog?: () => void;
   onRebuildEmbedding?: () => void;
@@ -48,7 +49,7 @@ const STATUS_CONFIG: Record<string, { labelKey: string; dot: string; ring: strin
   },
 };
 
-export default function StatusCard({ status, version, errorMessage, onToggle, onShowLog, onShowAppLog, onRebuildEmbedding }: StatusCardProps) {
+export default function StatusCard({ status, version, errorMessage, onToggle, onConsole, onShowLog, onShowAppLog, onRebuildEmbedding }: StatusCardProps) {
   const { t } = useTranslation();
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.stopped;
   const isStopped = status === 'stopped' || status === 'error' || status === 'timeout';
@@ -75,6 +76,14 @@ export default function StatusCard({ status, version, errorMessage, onToggle, on
               <p className="mt-1 text-xs text-red-400/80">{errorMessage}</p>
             )}
             <div className="mt-2 flex gap-2">
+              {onConsole && (
+                <button
+                  onClick={onConsole}
+                  className="rounded-lg border border-border-subtle bg-surface-elevated px-3 py-1 text-xs font-medium text-text-secondary transition-colors hover:border-border-active hover:text-text-primary"
+                >
+                  Console
+                </button>
+              )}
               <button
                 onClick={onShowLog}
                 className="rounded-lg border border-border-subtle bg-surface-elevated px-3 py-1 text-xs font-medium text-text-secondary transition-colors hover:border-border-active hover:text-text-primary"
