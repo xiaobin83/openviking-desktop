@@ -735,6 +735,8 @@ pub fn run() {
             if let Some(parent) = std::path::Path::new(&server_log_path).parent() {
                 std::fs::create_dir_all(parent).ok();
             }
+            // 每次 app 启动时清空服务端日志，确保日志对应当前会话
+            let _ = std::fs::File::create(&server_log_path);
 
             let workspace_path = {
                 let ws_file = app_data_dir.join("workspace_path");
