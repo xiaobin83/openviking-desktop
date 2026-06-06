@@ -164,6 +164,9 @@ async fn wait_for_health(
         .build()
         .unwrap();
 
+    // 初次检查前等待2秒，给服务启动时间，减少无意义的连接失败
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
     loop {
         if start.elapsed() > timeout {
             return false;
