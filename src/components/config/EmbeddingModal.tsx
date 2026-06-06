@@ -101,6 +101,11 @@ export default function EmbeddingModal({ config, open, onClose }: EmbeddingModal
             if (!updated.model_path && originalDenseRef.current?.model_path) {
               updated.model_path = originalDenseRef.current.model_path;
             }
+            if (originalDenseRef.current?.model) {
+              updated.model = originalDenseRef.current.model;
+            } else {
+              updated.model = PROVIDER_DEFAULT_MODEL.local;
+            }
           } else {
             if (updated.dimension === undefined) updated.dimension = 1024;
             if (updated.batch_size === undefined) updated.batch_size = 32;
