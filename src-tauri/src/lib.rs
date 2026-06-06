@@ -197,6 +197,48 @@ async fn open_app_log_file(state: tauri::State<'_, ServerState>) -> Result<Strin
     Ok("ok".to_string())
 }
 
+#[tauri::command]
+fn open_console(state: tauri::State<'_, ServerState>) -> Result<(), String> {
+    let venv_python = state.venv_path.lock().unwrap().clone();
+    let workspace = state.workspace_path.lock().unwrap().clone();
+    let workspace = if workspace.is_empty() {
+        "~".to_string()
+    } else {
+        workspace
+    };
+
+    let activate = std::path::Path::new(&venv_python)
+        .parent()
+        .map(|p| p.join("activate"))
+        .filter(|p| p.exists());
+
+    #[cfg(target_os = "macos")]
+    {
+        let cmd = if let Some(activate_path) = activate {
+            format!(
+                "tell application \"Terminal\" to do script \"cd {} && source {}\"",
+                workspace,
+                activate_path.to_string_lossy()
+            )
+        } else {
+            format!(
+                "tell application \"Terminal\" to do script \"cd {}\"",
+                workspace
+            )
+        };
+        std::process::Command::new("osascript")
+            .arg("-e")
+            .arg(&cmd)
+            .spawn()
+            .map_err(|e| format!("打开终端失败: {}", e))?;
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = activate;
+    }
+    Ok(())
+}
+
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenvikingState {
@@ -776,6 +818,7 @@ pub fn run() {
             read_server_log,
             open_log_file,
             open_app_log_file,
+            open_console,
             check_openviking_state,
             install_openviking,
             upgrade_openviking,
