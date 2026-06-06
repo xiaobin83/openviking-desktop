@@ -92,6 +92,8 @@ pub async fn spawn_server(
         msg
     })?;
 
+    log::info!("服务进程已启动 (PID={})", child.id());
+
     *state.child.lock().unwrap() = Some(child);
 
     let health_port = *state.port.lock().unwrap();
@@ -171,9 +173,11 @@ async fn wait_for_health(
 
         match req.send().await {
             Ok(resp) if resp.status().is_success() => {
+                log::info!("健康检查通过: {} (elapsed={:?})", url, start.elapsed());
                 return true;
             }
             _ => {
+                log::info!("健康检查失败: {} (elapsed={:?})", url, start.elapsed());
                 tokio::time::sleep(Duration::from_secs(interval_secs)).await;
             }
         }
@@ -194,6 +198,21 @@ fn start_runtime_health_monitor(
             .no_proxy()
             .build()
             .unwrap();
+
+        // 宽限期：服务标记为 running 后等待 30s 再开始监控，让服务完成后台初始化
+        log::info!("健康监控将在 30 秒宽限期后开始");
+        tokio::time::sleep(Duration::from_secs(30)).await;
+
+        // 检查宽限期内用户是否已停止服务
+        let current_status = app.try_state::<ServerState>()
+            .map(|s| s.status.lock().unwrap().clone())
+            .unwrap_or_default();
+        if current_status != "running" {
+            log::info!("宽限期内服务状态已变更为 {}, 退出健康监控", current_status);
+            return;
+        }
+        log::info!("健康监控开始, 每 10s 轮询 /health");
+
         let mut consecutive_failures: u32 = 0;
         let mut total_restarts: u32 = 0;
         const MAX_FAILURES: u32 = 3;
@@ -231,6 +250,7 @@ fn start_runtime_health_monitor(
             }
 
             // health 连续失败，执行自动重启
+            log::info!("健康检查连续 {} 次失败, 触发自动重启 (第 {} 次)", MAX_FAILURES, total_restarts + 1);
             if total_restarts >= MAX_RESTARTS {
                 // 已达最大重启次数，停止尝试
                 if let Some(s) = app.try_state::<ServerState>() {
