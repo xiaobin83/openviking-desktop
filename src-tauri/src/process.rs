@@ -394,8 +394,29 @@ pub async fn stop_server(
         kill_child(child);
     }
     *child_opt = None;
+
+    // 确保 vikingbot 端口也释放
+    cleanup_port(18790);
+
     *state.last_error.lock().unwrap() = String::new();
     *state.status.lock().unwrap() = "stopped".to_string();
     let _ = app.emit("server-status-changed", "stopped");
     Ok("stopped".to_string())
+}
+
+/// 释放指定端口上的进程 (Unix: lsof+kill, Windows: netstat+taskkill)
+pub fn cleanup_port(port: u16) {
+    #[cfg(target_os = "windows")]
+    {
+        let _ = std::process::Command::new("cmd")
+            .args(&["/C", &format!("for /f \"tokens=5\" %a in ('netstat -ano ^| findstr :{}') do taskkill /F /PID %a", port)])
+            .output();
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(&format!("lsof -ti :{} | xargs kill -9 2>/dev/null", port))
+            .output();
+    }
 }
