@@ -395,7 +395,8 @@ pub async fn stop_server(
     }
     *child_opt = None;
 
-    // 确保 vikingbot 端口也释放
+    // 确保服务端和 vikingbot 端口也都释放（兜底清理）
+    cleanup_port(1933);
     cleanup_port(18790);
 
     *state.last_error.lock().unwrap() = String::new();
@@ -408,15 +409,32 @@ pub async fn stop_server(
 pub fn cleanup_port(port: u16) {
     #[cfg(target_os = "windows")]
     {
-        let _ = std::process::Command::new("cmd")
+        let output = std::process::Command::new("cmd")
             .args(&["/C", &format!("for /f \"tokens=5\" %a in ('netstat -ano ^| findstr :{}') do taskkill /F /PID %a", port)])
             .output();
+        if let Ok(out) = output {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            if !stdout.trim().is_empty() {
+                log::info!("cleanup_port {}: killed {}", port, stdout.trim());
+            }
+        }
     }
     #[cfg(not(target_os = "windows"))]
     {
-        let _ = std::process::Command::new("sh")
+        let output = std::process::Command::new("sh")
             .arg("-c")
-            .arg(&format!("lsof -ti :{} | xargs kill -9 2>/dev/null", port))
+            .arg(&format!("lsof -ti :{} 2>/dev/null", port))
             .output();
+        if let Ok(out) = output {
+            let pids = String::from_utf8_lossy(&out.stdout);
+            let trimmed = pids.trim();
+            if !trimmed.is_empty() {
+                log::info!("cleanup_port {}: killing PIDs {}", port, trimmed);
+                let _ = std::process::Command::new("sh")
+                    .arg("-c")
+                    .arg(&format!("kill -9 {} 2>/dev/null", trimmed.replace('\n', " ")))
+                    .output();
+            }
+        }
     }
 }
