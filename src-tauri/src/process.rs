@@ -90,6 +90,16 @@ pub async fn spawn_server(
         command.process_group(0);
     }
 
+    // 设置 VIRTUAL_ENV 环境变量，让 Python 子进程能正确识别虚拟环境
+    let venv_root = std::path::Path::new(&python_path)
+        .parent()
+        .and_then(|p| p.parent())
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_default();
+    if !venv_root.is_empty() {
+        command.env("VIRTUAL_ENV", &venv_root);
+    }
+
     let child = command.spawn().map_err(|e| {
         let msg = format!("启动服务失败: {}", e);
         set_error(state, app, &msg);
@@ -327,6 +337,15 @@ fn start_runtime_health_monitor(
             };
 
             let mut command = Command::new(&venv_path);
+            // 设置 VIRTUAL_ENV 环境变量
+            let venv_root = std::path::Path::new(&venv_path)
+                .parent()
+                .and_then(|p| p.parent())
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_default();
+            if !venv_root.is_empty() {
+                command.env("VIRTUAL_ENV", &venv_root);
+            }
             command
                 .arg("-m")
                 .arg("openviking.server.bootstrap")
