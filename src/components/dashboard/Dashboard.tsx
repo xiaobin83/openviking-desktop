@@ -179,6 +179,7 @@ export default function Dashboard() {
             errorMessage={errorMessage}
             onToggle={handleToggleServer}
             onShowLog={() => invoke('open_log_file')}
+            onShowAppLog={() => invoke('open_app_log_file')}
             onRebuildEmbedding={embeddingRebuildNeeded ? handleRebuildEmbedding : undefined}
           />
         </div>

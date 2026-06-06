@@ -128,6 +128,8 @@
   "status.start": "启动服务",
   "status.stop": "停止服务",
   "status.rebuild_embedding": "重建 Embedding",
+  "status.show_server_log": "OpenViking 日志",
+  "status.show_app_log": "应用日志",
 
   "embedding_modal.title": "更改 Embedding 模型",
   "embedding_modal.warning": "修改 embedding 模型需要重建向量数据库，现有向量数据将丢失。",
