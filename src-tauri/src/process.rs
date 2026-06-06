@@ -1,5 +1,5 @@
 use std::process::{Command, Stdio};
-use std::fs::File;
+use std::fs::OpenOptions;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 use crate::{get_ov_conf_path, ServerState};
@@ -61,7 +61,10 @@ pub async fn spawn_server(
 
     let port = *state.port.lock().unwrap();
 
-    let log_file = File::create(&state.server_log_path)
+    let log_file = OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(&state.server_log_path)
         .map_err(|e| {
             set_error(state, app, &format!("无法创建日志文件: {}", e));
             format!("无法创建日志文件: {}", e)
@@ -302,7 +305,10 @@ fn start_runtime_health_monitor(
                 }
             };
 
-            let log_file = match File::create(&log_path) {
+            let log_file = match OpenOptions::new()
+                .append(true)
+                .create(true)
+                .open(&log_path) {
                 Ok(f) => f,
                 Err(e) => {
                     if let Some(s) = app.try_state::<ServerState>() {
