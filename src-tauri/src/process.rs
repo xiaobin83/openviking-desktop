@@ -176,8 +176,12 @@ async fn wait_for_health(
                 log::info!("健康检查通过: {} (elapsed={:?})", url, start.elapsed());
                 return true;
             }
-            _ => {
-                log::info!("健康检查失败: {} (elapsed={:?})", url, start.elapsed());
+            Ok(resp) => {
+                log::info!("健康检查返回非成功状态码: {} for {} (elapsed={:?})", resp.status(), url, start.elapsed());
+                tokio::time::sleep(Duration::from_secs(interval_secs)).await;
+            }
+            Err(e) => {
+                log::info!("健康检查连接失败: {} for {} (elapsed={:?})", e, url, start.elapsed());
                 tokio::time::sleep(Duration::from_secs(interval_secs)).await;
             }
         }
@@ -235,8 +239,17 @@ fn start_runtime_health_monitor(
             }
 
             let ok = match req.send().await {
-                Ok(resp) if resp.status().is_success() => true,
-                _ => false,
+                Ok(resp) if resp.status().is_success() => {
+                    true
+                }
+                Ok(resp) => {
+                    log::info!("健康检查返回非成功状态码: {} for {}", resp.status(), url);
+                    false
+                }
+                Err(e) => {
+                    log::info!("健康检查连接失败: {} for {}", e, url);
+                    false
+                }
             };
 
             if ok {
