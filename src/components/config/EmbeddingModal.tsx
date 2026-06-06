@@ -100,6 +100,7 @@ export default function EmbeddingModal({ config, open, onClose }: EmbeddingModal
             if (defaultModel) {
               updated.model = defaultModel;
             }
+            delete updated.model_path;
           }
         }
         return updated;
@@ -240,6 +241,7 @@ export default function EmbeddingModal({ config, open, onClose }: EmbeddingModal
     const isLocal = provider === 'local';
     if (isLocal && REMOTE_ONLY_FIELDS.has(path)) return null;
     if (isLocal && (path === DIMENSION_PATH || path === BATCH_SIZE_PATH)) return null;
+    if (!isLocal && path === 'embedding.dense.model_path') return null;
 
     const keys = path.split('.');
     let value: unknown = localDense[keys[keys.length - 1] as keyof DenseEmbeddingConfig];
