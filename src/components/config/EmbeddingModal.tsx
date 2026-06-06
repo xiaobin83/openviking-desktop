@@ -26,6 +26,15 @@ const REMOTE_ONLY_FIELDS = new Set([
 const DIMENSION_PATH = 'embedding.dense.dimension';
 const BATCH_SIZE_PATH = 'embedding.dense.batch_size';
 
+const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
+  volcengine: 'doubao-embedding-vision-251215',
+  openai: 'text-embedding-3-small',
+  jina: 'jina-embeddings-v3',
+  gemini: 'text-embedding-004',
+  dashscope: 'text-embedding-v3',
+  local: 'bge-small-zh-v1.5-f16',
+};
+
 function computeChanges(
   original: DenseEmbeddingConfig,
   current: DenseEmbeddingConfig
@@ -87,6 +96,10 @@ export default function EmbeddingModal({ config, open, onClose }: EmbeddingModal
           } else {
             if (updated.dimension === undefined) updated.dimension = 1024;
             if (updated.batch_size === undefined) updated.batch_size = 32;
+            const defaultModel = PROVIDER_DEFAULT_MODEL[value as string];
+            if (defaultModel) {
+              updated.model = defaultModel;
+            }
           }
         }
         return updated;
