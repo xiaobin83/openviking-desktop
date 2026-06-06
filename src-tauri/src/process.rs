@@ -164,8 +164,8 @@ async fn wait_for_health(
         .build()
         .unwrap();
 
-    // 初次检查前等待2秒，给服务启动时间，减少无意义的连接失败
-    tokio::time::sleep(Duration::from_secs(2)).await;
+    // 初次检查前等待10秒，给服务充足的启动初始化时间
+    tokio::time::sleep(Duration::from_secs(10)).await;
 
     loop {
         if start.elapsed() > timeout {
@@ -209,9 +209,9 @@ fn start_runtime_health_monitor(
             .build()
             .unwrap();
 
-        // 宽限期：服务标记为 running 后等待 30s 再开始监控，让服务完成后台初始化
-        log::info!("健康监控将在 30 秒宽限期后开始");
-        tokio::time::sleep(Duration::from_secs(30)).await;
+        // 宽限期：服务标记为 running 后等待 10s 再开始监控，让服务完成后期初始化
+        log::info!("健康监控将在 10 秒宽限期后开始");
+        tokio::time::sleep(Duration::from_secs(10)).await;
 
         // 检查宽限期内用户是否已停止服务
         let current_status = app.try_state::<ServerState>()
