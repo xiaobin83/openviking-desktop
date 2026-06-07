@@ -6,8 +6,10 @@ import type { PythonEnvState, PythonTaskProgress } from '../../lib/types';
 
 export default function PythonEnvCard({
   onStateChange,
+  serverStopped,
 }: {
   onStateChange: (state: PythonEnvState) => void;
+  serverStopped: boolean;
 }) {
   const { t } = useTranslation();
   const [envState, setEnvState] = useState<PythonEnvState>({
@@ -23,8 +25,11 @@ export default function PythonEnvCard({
   const [showLogs, setShowLogs] = useState(false);
   const [showVersionDialog, setShowVersionDialog] = useState(false);
   const [pythonVersions, setPythonVersions] = useState<string[]>([]);
-  const [selectedVersion, setSelectedVersion] = useState('');
+  const [selectedPythonVersion, setSelectedPythonVersion] = useState('');
+  const [ovVersions, setOvVersions] = useState<string[]>([]);
+  const [selectedOvVersion, setSelectedOvVersion] = useState('');
   const [error, setError] = useState('');
+  const [fetchingVersions, setFetchingVersions] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -100,40 +105,38 @@ export default function PythonEnvCard({
     }
   };
 
-  const handleReinstall = async () => {
+  const handleOpenVersionDialog = async () => {
+    if (fetchingVersions) return;
+    setFetchingVersions(true);
+    try {
+      const [pyVersions, ovVersionsList] = await Promise.all([
+        invoke<string[]>('get_python_versions'),
+        invoke<string[]>('get_openviking_versions'),
+      ]);
+      setPythonVersions(pyVersions);
+      const defaultPyVersion = envState.pythonVersion
+        ? envState.pythonVersion.split('.').slice(0, 2).join('.')
+        : '3.13';
+      setSelectedPythonVersion(defaultPyVersion);
+      setOvVersions(ovVersionsList);
+      setSelectedOvVersion(envState.currentVersion || ovVersionsList[0] || '');
+      setShowVersionDialog(true);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setFetchingVersions(false);
+    }
+  };
+
+  const handleReinstallWithSelection = async () => {
+    setShowVersionDialog(false);
     if (!window.confirm(t('python.confirm_reinstall'))) return;
     setLoading(true);
     setError('');
     setLogs([]);
     setShowLogs(true);
     try {
-      await invoke('install_openviking', { pythonVersion: '3.13' });
-    } catch (err) {
-      setError(String(err));
-      setLoading(false);
-    }
-  };
-
-  const handleOpenVersionDialog = async () => {
-    try {
-      const versions = await invoke<string[]>('get_python_versions');
-      setPythonVersions(versions);
-      setSelectedVersion(envState.pythonVersion || '3.13');
-      setShowVersionDialog(true);
-    } catch (err) {
-      setError(String(err));
-    }
-  };
-
-  const handleChangePython = async () => {
-    if (!window.confirm(t('python.confirm_change'))) return;
-    setShowVersionDialog(false);
-    setLoading(true);
-    setError('');
-    setLogs([]);
-    setShowLogs(true);
-    try {
-      await invoke('upgrade_python', { version: selectedVersion });
+      await invoke('install_openviking', { pythonVersion: selectedPythonVersion, openvikingVersion: selectedOvVersion });
     } catch (err) {
       setError(String(err));
       setLoading(false);
@@ -190,26 +193,21 @@ export default function PythonEnvCard({
             {isUpgradable && !loading && (
               <button
                 onClick={handleUpgrade}
-                className="rounded-xl bg-aurora-500/15 px-5 py-2 text-sm font-medium text-aurora-400 transition-all hover:bg-aurora-500/25 hover:shadow-lg hover:shadow-aurora-500/10"
+                disabled={!serverStopped}
+                title={!serverStopped ? t('python.stop_server_first') : ''}
+                className="rounded-xl bg-aurora-500/15 px-5 py-2 text-sm font-medium text-aurora-400 transition-all hover:bg-aurora-500/25 hover:shadow-lg hover:shadow-aurora-500/10 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {t('python.upgrade', { version: envState.latestVersion })}
               </button>
             )}
-            {isInstalled && !loading && (
-              <button
-                onClick={handleReinstall}
-                className="rounded-xl border border-red-500/20 px-4 py-2 text-sm font-medium text-red-400 transition-all hover:border-red-500/40 hover:bg-red-500/10"
-              >
-                {t('python.reinstall')}
-              </button>
-            )}
-            {isInstalled && !loading && (
+            {isInstalled && !loading && serverStopped && (
               <button
                 onClick={handleOpenVersionDialog}
-                className="rounded-lg border border-border-subtle p-2 text-text-muted transition-colors hover:border-border-active hover:text-text-primary"
+                disabled={fetchingVersions}
+                className="rounded-lg border border-border-subtle p-2 text-text-muted transition-colors hover:border-border-active hover:text-text-primary disabled:opacity-50"
                 title={t('python.change_version')}
               >
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg className={`h-4 w-4 ${fetchingVersions ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="3" />
                   <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
                 </svg>
@@ -261,18 +259,31 @@ export default function PythonEnvCard({
 
       {showVersionDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-80 rounded-2xl border border-border-subtle bg-surface-card p-6 shadow-2xl">
-            <h3 className="text-sm font-semibold text-text-primary mb-4">{t('python.change_version')}</h3>
-            <p className="text-xs text-text-muted mb-2">{t('python.current_version')}: {envState.pythonVersion}</p>
+          <div className="w-96 rounded-2xl border border-border-subtle bg-surface-card p-6 shadow-2xl">
+            <h3 className="text-sm font-semibold text-text-primary mb-4">{t('python.select_version')}</h3>
+
+            <p className="text-xs text-text-muted mb-1.5">Python</p>
             <select
-              value={selectedVersion}
-              onChange={(e) => setSelectedVersion(e.target.value)}
-              className="w-full rounded-lg border border-border-subtle bg-surface-elevated px-3 py-2 text-sm text-text-primary focus:border-aurora-400 focus:outline-none"
+              value={selectedPythonVersion}
+              onChange={(e) => setSelectedPythonVersion(e.target.value)}
+              className="w-full rounded-lg border border-border-subtle bg-surface-elevated px-3 py-2 text-sm text-text-primary focus:border-aurora-400 focus:outline-none mb-3"
             >
               {pythonVersions.map((v) => (
                 <option key={v} value={v}>{v}</option>
               ))}
             </select>
+
+            <p className="text-xs text-text-muted mb-1.5">OpenViking</p>
+            <select
+              value={selectedOvVersion}
+              onChange={(e) => setSelectedOvVersion(e.target.value)}
+              className="w-full rounded-lg border border-border-subtle bg-surface-elevated px-3 py-2 text-sm text-text-primary focus:border-aurora-400 focus:outline-none"
+            >
+              {ovVersions.map((v) => (
+                <option key={v} value={v}>v{v}</option>
+              ))}
+            </select>
+
             <div className="mt-4 flex justify-end gap-2">
               <button
                 onClick={() => setShowVersionDialog(false)}
@@ -281,10 +292,10 @@ export default function PythonEnvCard({
                 Cancel
               </button>
               <button
-                onClick={handleChangePython}
+                onClick={handleReinstallWithSelection}
                 className="rounded-lg bg-aurora-500/15 px-4 py-1.5 text-sm font-medium text-aurora-400 hover:bg-aurora-500/25 transition-colors"
               >
-                Confirm
+                {t('python.reinstall')}
               </button>
             </div>
           </div>

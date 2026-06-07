@@ -272,7 +272,7 @@ async fn check_openviking_state(
             Err(e) => log::warn!("check_openviking_state: pip_show error: {}", e),
         }
 
-        match python_env::pip_index_latest_version(uv_path) {
+        match python_env::pip_index_latest_version().await {
             Ok(Some(v)) => latest_version = Some(v),
             Ok(None) => {} // network unavailable, skip
             Err(e) => log::warn!("check_openviking_state: index error: {}", e),
@@ -315,6 +315,7 @@ async fn install_openviking(
     app: tauri::AppHandle,
     state: tauri::State<'_, ServerState>,
     python_version: Option<String>,
+    openviking_version: Option<String>,
 ) -> Result<String, String> {
     let version = python_version.unwrap_or_else(|| "3.13".to_string());
     let uv_path = state.uv_path.clone();
@@ -350,7 +351,7 @@ async fn install_openviking(
         let venv_python = venv_target.join("bin")
             .join(if cfg!(target_os = "windows") { "python.exe" } else { "python3" });
         let venv_python_str = venv_python.to_string_lossy().to_string();
-        python_env::pip_install_openviking(&app, &uv_path, &venv_python_str, false)?;
+        python_env::pip_install_openviking(&app, &uv_path, &venv_python_str, false, openviking_version.as_deref())?;
 
         Ok(venv_python_str)
     }).await;
@@ -397,7 +398,7 @@ async fn upgrade_openviking(
     let uv_path = state.uv_path.clone();
     let venv_python = state.venv_path.lock().unwrap().clone();
 
-    let result = python_env::pip_install_openviking(&app, &uv_path, &venv_python, true);
+    let result = python_env::pip_install_openviking(&app, &uv_path, &venv_python, true, None);
 
     UPGRADING.store(false, std::sync::atomic::Ordering::Release);
 
@@ -458,7 +459,7 @@ async fn upgrade_python(
         let venv_python = venv_target.join("bin")
             .join(if cfg!(target_os = "windows") { "python.exe" } else { "python3" });
         let venv_python_str = venv_python.to_string_lossy().to_string();
-        python_env::pip_install_openviking(&app, &uv_path, &venv_python_str, false)?;
+        python_env::pip_install_openviking(&app, &uv_path, &venv_python_str, false, None)?;
 
         Ok(venv_python_str)
     }).await;
@@ -493,6 +494,11 @@ async fn get_python_versions(
     state: tauri::State<'_, ServerState>,
 ) -> Result<Vec<String>, String> {
     python_env::python_list_all(&state.uv_path)
+}
+
+#[tauri::command]
+async fn get_openviking_versions() -> Result<Vec<String>, String> {
+    python_env::pip_index_all_versions().await
 }
 
 #[tauri::command]
@@ -826,6 +832,7 @@ pub fn run() {
             upgrade_openviking,
             upgrade_python,
             get_python_versions,
+            get_openviking_versions,
             get_uv_path,
             open_playground,
             resolve_bundled_model_path,

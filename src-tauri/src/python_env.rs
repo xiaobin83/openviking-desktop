@@ -2,6 +2,7 @@ use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use tauri::{AppHandle, Emitter};
 use serde::Serialize;
+use semver::Version as SemverVersion;
 
 #[derive(Clone, Serialize)]
 pub struct ProgressPayload {
@@ -116,22 +117,27 @@ pub fn pip_install_openviking(
     uv_path: &str,
     venv_python: &str,
     upgrade: bool,
+    version: Option<&str>,
 ) -> Result<(), String> {
+    let package = match version {
+        Some(v) => format!("openviking[bot,local-embed]=={}", v),
+        None => "openviking[bot,local-embed]".to_string(),
+    };
     if upgrade {
         run_uv(
             app,
             uv_path,
-            &["pip", "install", "--python", venv_python, "--upgrade", "openviking[bot,local-embed]"],
+            &["pip", "install", "--python", venv_python, "--upgrade", &package],
             "upgrading",
-            "升级 OpenViking...",
+            &format!("升级 OpenViking{}...", version.map(|v| format!(" v{}", v)).unwrap_or_default()),
         )
     } else {
         run_uv(
             app,
             uv_path,
-            &["pip", "install", "--python", venv_python, "openviking[bot,local-embed]"],
+            &["pip", "install", "--python", venv_python, &package],
             "installing",
-            "安装 OpenViking...",
+            &format!("安装 OpenViking{}...", version.map(|v| format!(" v{}", v)).unwrap_or_default()),
         )
     }
 }
@@ -160,21 +166,44 @@ pub fn pip_show_openviking(uv_path: &str, venv_python: &str) -> Result<Option<St
     }
 }
 
-pub fn pip_index_latest_version(uv_path: &str) -> Result<Option<String>, String> {
-    let output = run_uv_output(uv_path, &["pip", "index", "versions", "openviking"]);
-    match output {
-        Ok(text) => {
-            for line in text.lines() {
-                if line.starts_with("openviking ") && line.contains('(') {
-                    let start = line.find('(').unwrap() + 1;
-                    let end = line.find(')').unwrap_or(line.len());
-                    return Ok(Some(line[start..end].to_string()));
-                }
-            }
-            Ok(None)
-        }
-        Err(_) => Ok(None),
+pub async fn pip_index_all_versions() -> Result<Vec<String>, String> {
+    let client = reqwest::Client::new();
+    let resp = client
+        .get("https://pypi.org/pypi/openviking/json")
+        .send()
+        .await
+        .map_err(|e| format!("PyPI API 请求失败: {}", e))?;
+    if !resp.status().is_success() {
+        return Err(format!("PyPI API 返回状态码: {}", resp.status()));
     }
+    let data: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| format!("PyPI API 解析失败: {}", e))?;
+
+    let releases = data["releases"]
+        .as_object()
+        .ok_or_else(|| "PyPI 返回格式异常: 缺少 releases 字段".to_string())?;
+
+    let mut versions: Vec<String> = releases.keys().cloned().collect();
+
+    versions.sort_by(|a, b| {
+        let a_sem = SemverVersion::parse(a);
+        let b_sem = SemverVersion::parse(b);
+        match (a_sem, b_sem) {
+            (Ok(va), Ok(vb)) => vb.cmp(&va),
+            (Ok(_), Err(_)) => std::cmp::Ordering::Less,
+            (Err(_), Ok(_)) => std::cmp::Ordering::Greater,
+            (Err(_), Err(_)) => b.cmp(a),
+        }
+    });
+
+    Ok(versions)
+}
+
+pub async fn pip_index_latest_version() -> Result<Option<String>, String> {
+    let versions = pip_index_all_versions().await?;
+    Ok(versions.into_iter().next())
 }
 
 pub fn python_list_all(uv_path: &str) -> Result<Vec<String>, String> {
