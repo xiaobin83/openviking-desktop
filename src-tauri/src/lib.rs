@@ -9,6 +9,7 @@ mod python_env;
 mod tray;
 
 const DEFAULT_OV_CONF_PATH: &str = ".openviking/ov.conf";
+const ONBOARDED_FLAG_NAME: &str = ".openviking/.onboarded";
 
 fn get_home_dir() -> std::path::PathBuf {
     dirs::home_dir().expect("no home dir")
@@ -119,6 +120,13 @@ fn get_ov_conf_dir(state: &ServerState) -> String {
         .parent()
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|| "/tmp".to_string())
+}
+
+fn get_onboarded_flag_path() -> String {
+    let home = get_home_dir();
+    home.join(ONBOARDED_FLAG_NAME)
+        .to_string_lossy()
+        .to_string()
 }
 
 #[tauri::command]
@@ -665,6 +673,24 @@ fn delete_rebuild_lock(state: tauri::State<'_, ServerState>) -> Result<(), Strin
     }
 }
 
+#[tauri::command]
+async fn is_onboarded() -> Result<bool, String> {
+    let flag_path = get_onboarded_flag_path();
+    Ok(std::path::Path::new(&flag_path).exists())
+}
+
+#[tauri::command]
+async fn mark_onboarded() -> Result<String, String> {
+    let flag_path = get_onboarded_flag_path();
+    if let Some(parent) = std::path::Path::new(&flag_path).parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("创建目录失败: {}", e))?;
+    }
+    std::fs::write(&flag_path, "1")
+        .map_err(|e| format!("写入标志文件失败: {}", e))?;
+    Ok("ok".to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -770,46 +796,58 @@ pub fn run() {
 
             tray::create_tray(app.handle())?;
 
-            // 首次启动：若 ov.conf 不存在则生成默认配置
             let state = app.state::<ServerState>();
-            let conf_path = get_ov_conf_path(&state);
-            if !std::path::Path::new(&conf_path).exists() {
-                log::info!("Generating default ov.conf at {}", conf_path);
-                let model_path = resolve_bundled_model_path_inner(app.handle());
-                let default_config = serde_json::json!({
-                    "server": { "host": "127.0.0.1", "port": 1933, "cors_origins": ["*"] },
-                    "storage": { "workspace": "~/.openviking/data", "vectordb": { "backend": "local" }, "agfs": { "backend": "local" } },
-                    "embedding": {
-                        "dense": { "provider": "local", "model": "bge-small-zh-v1.5-f16", "model_path": model_path },
-                        "max_concurrent": 10, "max_retries": 3,
-                        "circuit_breaker": { "failure_threshold": 5, "reset_timeout": 60, "max_reset_timeout": 600 }
-                    },
-                    "vlm": { "max_retries": 3, "max_concurrent": 100, "timeout": 60.0, "thinking": false, "stream": false },
-                    "encryption": { "enabled": false },
-                    "log": { "level": "INFO" },
-                    "feishu": { "domain": "https://open.feishu.cn", "max_rows_per_sheet": 1000, "max_records_per_table": 1000 }
-                }).to_string();
-                if let Some(parent) = std::path::Path::new(&conf_path).parent() {
-                    std::fs::create_dir_all(parent).ok();
-                }
-                std::fs::write(&conf_path, default_config).ok();
-            }
+            let onboarded = std::path::Path::new(&get_onboarded_flag_path()).exists();
+            log::info!("Onboarded flag: {}", onboarded);
 
-            // 自动启动服务（仅在 openviking 已安装时）
-            let auto_start_handle = app.handle().clone();
-            let venv_path_val = state.venv_path.lock().unwrap().clone();
-            let should_auto_start = if !venv_path_val.is_empty() {
-                python_env::pip_show_openviking(&state.uv_path, &venv_path_val)
-                    .ok()
-                    .flatten()
-                    .is_some()
+            if onboarded {
+                // 首次启动：若 ov.conf 不存在则生成默认配置
+                let conf_path = get_ov_conf_path(&state);
+                if !std::path::Path::new(&conf_path).exists() {
+                    log::info!("Generating default ov.conf at {}", conf_path);
+                    let model_path = resolve_bundled_model_path_inner(app.handle());
+                    let default_config = serde_json::json!({
+                        "server": { "host": "127.0.0.1", "port": 1933, "cors_origins": ["*"] },
+                        "storage": { "workspace": "~/.openviking/data", "vectordb": { "backend": "local" }, "agfs": { "backend": "local" } },
+                        "embedding": {
+                            "dense": { "provider": "local", "model": "bge-small-zh-v1.5-f16", "model_path": model_path },
+                            "max_concurrent": 10, "max_retries": 3,
+                            "circuit_breaker": { "failure_threshold": 5, "reset_timeout": 60, "max_reset_timeout": 600 }
+                        },
+                        "vlm": { "max_retries": 3, "max_concurrent": 100, "timeout": 60.0, "thinking": false, "stream": false },
+                        "encryption": { "enabled": false },
+                        "log": { "level": "INFO" },
+                        "feishu": { "domain": "https://open.feishu.cn", "max_rows_per_sheet": 1000, "max_records_per_table": 1000 }
+                    }).to_string();
+                    if let Some(parent) = std::path::Path::new(&conf_path).parent() {
+                        std::fs::create_dir_all(parent).ok();
+                    }
+                    std::fs::write(&conf_path, default_config).ok();
+                }
+
+                // 自动启动服务（仅在 openviking 已安装时）
+                let auto_start_handle = app.handle().clone();
+                let venv_path_val = state.venv_path.lock().unwrap().clone();
+                let should_auto_start = if !venv_path_val.is_empty() {
+                    python_env::pip_show_openviking(&state.uv_path, &venv_path_val)
+                        .ok()
+                        .flatten()
+                        .is_some()
+                } else {
+                    false
+                };
+                if should_auto_start {
+                    tauri::async_runtime::spawn(async move {
+                        let _ = process::spawn_server_with_app_handle(&auto_start_handle).await;
+                    });
+                }
             } else {
-                false
-            };
-            if should_auto_start {
-                tauri::async_runtime::spawn(async move {
-                    let _ = process::spawn_server_with_app_handle(&auto_start_handle).await;
-                });
+                // 首次运行：不生成配置，不自动启动，显示向导窗口
+                log::info!("First run detected — showing onboarding wizard");
+                if let Some(window) = app.get_webview_window("dashboard") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
             }
 
             Ok(())
@@ -843,6 +881,8 @@ pub fn run() {
             read_rebuild_lock,
             write_rebuild_lock,
             delete_rebuild_lock,
+            is_onboarded,
+            mark_onboarded,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {

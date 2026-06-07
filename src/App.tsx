@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { getDefaultConfigJson } from './lib/config-fields';
+import OnboardingWizard from './components/wizard/OnboardingWizard';
 import Dashboard from './components/dashboard/Dashboard';
 import ConfigPage from './components/config/ConfigPage';
 
@@ -11,12 +12,25 @@ function App() {
   const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [ready, setReady] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
   useEffect(() => {
+    invoke<boolean>('is_onboarded')
+      .then((onboarded) => {
+        setNeedsOnboarding(!onboarded);
+      })
+      .catch(() => {
+        setNeedsOnboarding(false);
+      })
+      .finally(() => setReady(true));
+  }, []);
+
+  useEffect(() => {
+    if (needsOnboarding) return;
     invoke<string>('read_config').catch(() => {
       invoke('write_config', { config: getDefaultConfigJson() }).catch(() => {});
     });
-  }, []);
+  }, [needsOnboarding]);
 
   useEffect(() => {
     const updateTitle = () => {
@@ -29,20 +43,16 @@ function App() {
     };
   }, [i18n, t]);
 
-  useEffect(() => {
-    setReady(true);
-  }, []);
-
   const toggleLang = () => {
     const next = i18n.language === 'zh' ? 'en' : 'zh';
     i18n.changeLanguage(next);
     localStorage.setItem('lang', next);
   };
 
-  const TABS: { key: Tab; label: string }[] = [
-    { key: 'overview', label: t('tab.overview') },
-    { key: 'config', label: t('tab.config') },
-  ];
+  // Show wizard if onboarding needed
+  if (needsOnboarding) {
+    return <OnboardingWizard onComplete={() => setNeedsOnboarding(false)} />;
+  }
 
   if (!ready) {
     return (
@@ -53,6 +63,11 @@ function App() {
       </div>
     );
   }
+
+  const TABS: { key: Tab; label: string }[] = [
+    { key: 'overview', label: t('tab.overview') },
+    { key: 'config', label: t('tab.config') },
+  ];
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-surface">

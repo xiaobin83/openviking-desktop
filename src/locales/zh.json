@@ -169,7 +169,7 @@
   "stats.agents_desc": "活跃的 Agent 数量",
 
   "python.not_installed": "OpenViking 未安装",
-  "python.not_installed_hint": "请安装后即可启动服务",
+  "python.not_installed_hint": "请首先安装运行环境",
   "python.checking_hint": "正在读取基本信息",
   "python.install": "安装 OpenViking",
   "python.upgrade": "升级到 {{version}}",
@@ -188,5 +188,25 @@
   "python.env_title": "Python 环境",
   "python.log_output": "stdout/stderr 输出",
   "python.select_version": "选择版本并重新安装",
-  "python.stop_server_first": "需要先停止服务器"
+  "python.stop_server_first": "需要先停止服务器",
+
+  "wizard.title": "设置向导",
+  "wizard.step_install": "安装 OpenViking",
+  "wizard.step_embedding": "配置 Embedding",
+  "wizard.step_vlm": "配置 VLM",
+  "wizard.step_apikey": "Root API Key",
+  "wizard.generate_uuid": "生成 UUID",
+  "wizard.apikey_required": "Root API Key 为必填项",
+  "wizard.apikey_playground_note": "访问 Playground 需要此密钥，请妥善保管。",
+  "wizard.next": "下一步",
+  "wizard.back": "上一步",
+  "wizard.complete": "完成设置",
+  "wizard.skip": "暂时跳过",
+  "wizard.install_progress": "正在安装 OpenViking...",
+  "wizard.already_installed": "OpenViking 已安装，跳过此步骤...",
+  "wizard.version_selection_hint": "OpenViking 已安装。您可以在此选择版本并重新安装，或点击「下一步」继续。",
+  "wizard.provider_local": "本地 (Local)",
+  "wizard.provider_custom": "自定义...",
+  "wizard.custom_provider_fields": "配置自定义 Provider：",
+  "wizard.select_provider": "选择 Provider"
 }
