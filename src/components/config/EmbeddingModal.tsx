@@ -93,8 +93,7 @@ export default function EmbeddingModal({ config, open, onClose }: EmbeddingModal
 
         if (denseKeys === 'provider') {
           if (value === 'local') {
-            delete updated.dimension;
-            delete updated.batch_size;
+            if (updated.dimension === undefined) updated.dimension = 512;
             delete updated.api_key;
             delete updated.api_base;
             delete updated.input;
@@ -253,7 +252,7 @@ export default function EmbeddingModal({ config, open, onClose }: EmbeddingModal
     const provider = localDense.provider ?? 'local';
     const isLocal = provider === 'local';
     if (isLocal && REMOTE_ONLY_FIELDS.has(path)) return null;
-    if (isLocal && (path === DIMENSION_PATH || path === BATCH_SIZE_PATH)) return null;
+
     if (!isLocal && path === 'embedding.dense.model_path') return null;
 
     const keys = path.split('.');
