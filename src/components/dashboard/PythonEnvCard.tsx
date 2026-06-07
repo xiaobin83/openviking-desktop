@@ -29,6 +29,7 @@ export default function PythonEnvCard({
   const [ovVersions, setOvVersions] = useState<string[]>([]);
   const [selectedOvVersion, setSelectedOvVersion] = useState('');
   const [error, setError] = useState('');
+  const [checking, setChecking] = useState(true);
   const [fetchingVersions, setFetchingVersions] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -38,7 +39,8 @@ export default function PythonEnvCard({
         setEnvState(state);
         onStateChange(state);
       })
-      .catch(console.error);
+      .catch(console.error)
+      .finally(() => setChecking(false));
   }, []);
 
   useEffect(() => {
@@ -174,15 +176,15 @@ export default function PythonEnvCard({
                     <span className="ml-1 text-aurora-400"> → v{envState.latestVersion}</span>
                   )}
                 </p>
+              ) : checking ? (
+                <p className="text-xs text-text-muted">{t('python.checking_hint')}</p>
               ) : (
-                <p className="text-xs text-text-muted">
-                  {t('python.not_installed_hint')}
-                </p>
+                <p className="text-xs text-text-muted">{t('python.not_installed_hint')}</p>
               )}
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {!isInstalled && !loading && (
+            {!isInstalled && !loading && !checking && (
               <button
                 onClick={handleInstall}
                 className="rounded-xl bg-aurora-500/15 px-5 py-2 text-sm font-medium text-aurora-400 transition-all hover:bg-aurora-500/25 hover:shadow-lg hover:shadow-aurora-500/10"

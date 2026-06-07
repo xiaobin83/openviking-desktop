@@ -170,6 +170,7 @@
 
   "python.not_installed": "OpenViking 未安装",
   "python.not_installed_hint": "请安装后即可启动服务",
+  "python.checking_hint": "正在读取基本信息",
   "python.install": "安装 OpenViking",
   "python.upgrade": "升级到 {{version}}",
   "python.reinstall": "重新安装",
