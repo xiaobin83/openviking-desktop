@@ -188,5 +188,25 @@
   "python.env_title": "Python Environment",
   "python.log_output": "stdout/stderr output",
   "python.select_version": "Select Version & Reinstall",
-  "python.stop_server_first": "Stop the server first"
+  "python.stop_server_first": "Stop the server first",
+
+  "wizard.title": "Setup Wizard",
+  "wizard.step_install": "Install OpenViking",
+  "wizard.step_embedding": "Configure Embedding",
+  "wizard.step_vlm": "Configure VLM",
+  "wizard.step_apikey": "Root API Key",
+  "wizard.generate_uuid": "Generate UUID",
+  "wizard.apikey_required": "Root API Key is required",
+  "wizard.apikey_playground_note": "You need this key to access Playground. Keep it safe.",
+  "wizard.next": "Next",
+  "wizard.back": "Back",
+  "wizard.complete": "Complete Setup",
+  "wizard.skip": "Skip for now",
+  "wizard.install_progress": "Installing OpenViking...",
+  "wizard.already_installed": "OpenViking already installed, skipping...",
+  "wizard.version_selection_hint": "OpenViking is already installed. You can change versions below and reinstall, or click Next to continue.",
+  "wizard.provider_local": "Local",
+  "wizard.provider_custom": "Custom...",
+  "wizard.custom_provider_fields": "Configure your custom provider:",
+  "wizard.select_provider": "Select a provider"
 }
