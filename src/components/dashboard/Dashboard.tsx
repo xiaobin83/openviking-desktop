@@ -130,7 +130,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-5">
-      <PythonEnvCard onStateChange={handlePythonStateChange} />
+      <PythonEnvCard onStateChange={handlePythonStateChange} serverStopped={serverStatus === 'stopped'} />
       {rebuildLockExists && (
         <div className="bg-amber-500/10 border border-amber-500/20 rounded-md px-4 py-3 text-sm text-amber-400 flex items-center gap-3">
           <span className="flex-1">{t('dashboard.rebuild_incomplete')}</span>

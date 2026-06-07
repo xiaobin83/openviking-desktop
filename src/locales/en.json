@@ -179,12 +179,13 @@
   "python.upgrading": "Upgrading OpenViking...",
   "python.downloading": "Downloading Python {{version}}...",
   "python.creating_venv": "Creating virtual environment...",
-  "python.change_version": "Change Python Version",
+  "python.change_version": "Change Version",
   "python.current_version": "Current Version",
   "python.new_version": "New Version",
-  "python.confirm_change": "Changing Python version will recreate the virtualenv and reinstall openviking. Continue?",
   "python.network_error": "Network error, please check your connection and retry",
   "python.uv_not_found": "uv runtime not found, please reinstall OpenViking Desktop",
   "python.env_title": "Python Environment",
-  "python.log_output": "stdout/stderr output"
+  "python.log_output": "stdout/stderr output",
+  "python.select_version": "Select Version & Reinstall",
+  "python.stop_server_first": "Stop the server first"
 }
