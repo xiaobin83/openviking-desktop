@@ -1,8 +1,8 @@
-use std::process::{Command, Stdio};
+use crate::{get_ov_conf_path, ServerState};
 use std::fs::OpenOptions;
+use std::process::{Command, Stdio};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
-use crate::{get_ov_conf_path, ServerState};
 
 #[cfg(unix)]
 use std::os::unix::process::CommandExt;
@@ -30,17 +30,12 @@ fn set_error(state: &ServerState, app: &AppHandle, msg: &str) {
     let _ = app.emit("server-status-changed", "error");
 }
 
-pub async fn spawn_server_with_app_handle(
-    app: &AppHandle,
-) -> Result<String, String> {
+pub async fn spawn_server_with_app_handle(app: &AppHandle) -> Result<String, String> {
     let state = app.state::<ServerState>();
     spawn_server(&state, app).await
 }
 
-pub async fn spawn_server(
-    state: &ServerState,
-    app: &AppHandle,
-) -> Result<String, String> {
+pub async fn spawn_server(state: &ServerState, app: &AppHandle) -> Result<String, String> {
     let python_path = state.venv_path.lock().unwrap().clone();
     if !std::path::Path::new(&python_path).exists() {
         set_error(state, app, "OpenViking 未安装，请先在仪表盘中安装");
@@ -112,8 +107,13 @@ pub async fn spawn_server(
         msg
     })?;
 
-    log::info!("spawn_server: python={} config={} port={} pid={}",
-        python_path, get_ov_conf_path(state), port, child.id());
+    log::info!(
+        "spawn_server: python={} config={} port={} pid={}",
+        python_path,
+        get_ov_conf_path(state),
+        port,
+        child.id()
+    );
 
     *state.child.lock().unwrap() = Some(child);
 
@@ -124,9 +124,15 @@ pub async fn spawn_server(
 
     let root_api_key = {
         let ov_conf_path = get_ov_conf_path(state);
-        std::fs::read_to_string(&ov_conf_path).ok()
+        std::fs::read_to_string(&ov_conf_path)
+            .ok()
             .and_then(|content| serde_json::from_str::<serde_json::Value>(&content).ok())
-            .and_then(|json| json.get("server")?.get("root_api_key")?.as_str().map(|s| s.to_string()))
+            .and_then(|json| {
+                json.get("server")?
+                    .get("root_api_key")?
+                    .as_str()
+                    .map(|s| s.to_string())
+            })
             .filter(|s| !s.is_empty())
     };
 
@@ -153,13 +159,15 @@ pub async fn spawn_server(
                 state_log_path,
             );
         } else {
-            let current = app_for_health.try_state::<ServerState>()
+            let current = app_for_health
+                .try_state::<ServerState>()
                 .map(|s| s.status.lock().unwrap().clone());
             // 如果用户已主动停止，不覆盖状态
             if current.as_deref() == Some("starting") {
                 if let Some(s) = app_for_health.try_state::<ServerState>() {
                     *s.status.lock().unwrap() = "timeout".to_string();
-                    *s.last_error.lock().unwrap() = "服务启动超时（30 秒），请检查 Python 服务和配置是否正确".to_string();
+                    *s.last_error.lock().unwrap() =
+                        "服务启动超时（30 秒），请检查 Python 服务和配置是否正确".to_string();
                 }
                 let _ = app_for_health.emit("server-status-changed", "timeout");
             }
@@ -177,10 +185,7 @@ async fn wait_for_health(
     timeout: Duration,
     interval_secs: u64,
 ) -> bool {
-    let client = reqwest::Client::builder()
-        .no_proxy()
-        .build()
-        .unwrap();
+    let client = reqwest::Client::builder().no_proxy().build().unwrap();
 
     // 初次检查前等待10秒，给服务充足的启动初始化时间
     tokio::time::sleep(Duration::from_secs(10)).await;
@@ -201,11 +206,21 @@ async fn wait_for_health(
                 return true;
             }
             Ok(resp) => {
-                log::info!("健康检查返回非成功状态码: {} for {} (elapsed={:?})", resp.status(), url, start.elapsed());
+                log::info!(
+                    "健康检查返回非成功状态码: {} for {} (elapsed={:?})",
+                    resp.status(),
+                    url,
+                    start.elapsed()
+                );
                 tokio::time::sleep(Duration::from_secs(interval_secs)).await;
             }
             Err(e) => {
-                log::info!("健康检查连接失败: {} for {} (elapsed={:?})", e, url, start.elapsed());
+                log::info!(
+                    "健康检查连接失败: {} for {} (elapsed={:?})",
+                    e,
+                    url,
+                    start.elapsed()
+                );
                 tokio::time::sleep(Duration::from_secs(interval_secs)).await;
             }
         }
@@ -222,17 +237,15 @@ fn start_runtime_health_monitor(
     log_path: String,
 ) {
     tokio::spawn(async move {
-        let monitor_client = reqwest::Client::builder()
-            .no_proxy()
-            .build()
-            .unwrap();
+        let monitor_client = reqwest::Client::builder().no_proxy().build().unwrap();
 
         // 宽限期：服务标记为 running 后等待 10s 再开始监控，让服务完成后期初始化
         log::info!("健康监控将在 10 秒宽限期后开始");
         tokio::time::sleep(Duration::from_secs(10)).await;
 
         // 检查宽限期内用户是否已停止服务
-        let current_status = app.try_state::<ServerState>()
+        let current_status = app
+            .try_state::<ServerState>()
             .map(|s| s.status.lock().unwrap().clone())
             .unwrap_or_default();
         if current_status != "running" {
@@ -250,7 +263,8 @@ fn start_runtime_health_monitor(
             tokio::time::sleep(Duration::from_secs(10)).await;
 
             // 如果状态不是 running，说明被用户手动停止，退出监控
-            let current_status = app.try_state::<ServerState>()
+            let current_status = app
+                .try_state::<ServerState>()
                 .map(|s| s.status.lock().unwrap().clone())
                 .unwrap_or_default();
             if current_status != "running" {
@@ -263,9 +277,7 @@ fn start_runtime_health_monitor(
             }
 
             let ok = match req.send().await {
-                Ok(resp) if resp.status().is_success() => {
-                    true
-                }
+                Ok(resp) if resp.status().is_success() => true,
                 Ok(resp) => {
                     log::info!("健康检查返回非成功状态码: {} for {}", resp.status(), url);
                     false
@@ -287,7 +299,11 @@ fn start_runtime_health_monitor(
             }
 
             // health 连续失败，执行自动重启
-            log::info!("健康检查连续 {} 次失败, 触发自动重启 (第 {} 次)", MAX_FAILURES, total_restarts + 1);
+            log::info!(
+                "健康检查连续 {} 次失败, 触发自动重启 (第 {} 次)",
+                MAX_FAILURES,
+                total_restarts + 1
+            );
             if total_restarts >= MAX_RESTARTS {
                 // 已达最大重启次数，停止尝试
                 if let Some(s) = app.try_state::<ServerState>() {
@@ -327,15 +343,13 @@ fn start_runtime_health_monitor(
                 }
             };
 
-            let log_file = match OpenOptions::new()
-                .append(true)
-                .create(true)
-                .open(&log_path) {
+            let log_file = match OpenOptions::new().append(true).create(true).open(&log_path) {
                 Ok(f) => f,
                 Err(e) => {
                     if let Some(s) = app.try_state::<ServerState>() {
                         *s.status.lock().unwrap() = "error".to_string();
-                        *s.last_error.lock().unwrap() = format!("重启失败，无法创建日志文件: {}", e);
+                        *s.last_error.lock().unwrap() =
+                            format!("重启失败，无法创建日志文件: {}", e);
                     }
                     let _ = app.emit("server-status-changed", "error");
                     break;
@@ -375,8 +389,7 @@ fn start_runtime_health_monitor(
                 command.process_group(0);
             }
 
-            let child = match command.spawn()
-            {
+            let child = match command.spawn() {
                 Ok(c) => c,
                 Err(e) => {
                     if let Some(s) = app.try_state::<ServerState>() {
@@ -396,13 +409,8 @@ fn start_runtime_health_monitor(
             // 等待新进程健康检查就绪（更短的超时时间）
             let restart_start = std::time::Instant::now();
             let restart_timeout = Duration::from_secs(15);
-            let restarted_ok = wait_for_health(
-                &url,
-                &api_key,
-                restart_start,
-                restart_timeout,
-                2,
-            ).await;
+            let restarted_ok =
+                wait_for_health(&url, &api_key, restart_start, restart_timeout, 2).await;
 
             if restarted_ok {
                 if let Some(s) = app.try_state::<ServerState>() {
@@ -422,10 +430,7 @@ fn start_runtime_health_monitor(
     });
 }
 
-pub async fn stop_server(
-    state: &ServerState,
-    app: &AppHandle,
-) -> Result<String, String> {
+pub async fn stop_server(state: &ServerState, app: &AppHandle) -> Result<String, String> {
     let mut child_opt = state.child.lock().unwrap();
     if let Some(ref mut child) = *child_opt {
         kill_child(child);
@@ -469,7 +474,10 @@ pub fn cleanup_port(port: u16) {
                 log::info!("cleanup_port {}: killing PIDs {}", port, trimmed);
                 let _ = std::process::Command::new("sh")
                     .arg("-c")
-                    .arg(&format!("kill -9 {} 2>/dev/null", trimmed.replace('\n', " ")))
+                    .arg(&format!(
+                        "kill -9 {} 2>/dev/null",
+                        trimmed.replace('\n', " ")
+                    ))
                     .output();
             }
         }
