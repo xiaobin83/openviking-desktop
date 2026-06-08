@@ -1,8 +1,8 @@
 use std::sync::Mutex;
 use tauri::{
-    AppHandle, Listener, Manager,
     menu::{Menu, MenuBuilder, MenuItemBuilder},
     tray::{TrayIcon, TrayIconBuilder},
+    AppHandle, Listener, Manager,
 };
 
 static TRAY: Mutex<Option<TrayIcon>> = Mutex::new(None);
@@ -69,13 +69,11 @@ fn build_status_menu(app: &AppHandle, status: &str) -> tauri::Result<Menu<tauri:
     let stop_item = MenuItemBuilder::with_id("stop_server", "关闭服务")
         .enabled(is_running || is_starting)
         .build(app)?;
-    let dashboard_item = MenuItemBuilder::with_id("open_dashboard", "打开仪表盘")
-        .build(app)?;
+    let dashboard_item = MenuItemBuilder::with_id("open_dashboard", "打开仪表盘").build(app)?;
     let playground_item = MenuItemBuilder::with_id("open_playground", "启动 Playground")
         .enabled(is_running)
         .build(app)?;
-    let quit_item = MenuItemBuilder::with_id("quit", "退出")
-        .build(app)?;
+    let quit_item = MenuItemBuilder::with_id("quit", "退出").build(app)?;
 
     MenuBuilder::new(app)
         .item(&status_item)

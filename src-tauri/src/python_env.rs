@@ -1,8 +1,8 @@
+use semver::Version as SemverVersion;
+use serde::Serialize;
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use tauri::{AppHandle, Emitter};
-use serde::Serialize;
-use semver::Version as SemverVersion;
 
 #[derive(Clone, Serialize)]
 pub struct ProgressPayload {
@@ -40,19 +40,24 @@ fn run_uv(
             for line in reader.lines() {
                 if let Ok(line) = line {
                     if !line.is_empty() {
-                        let _ = app_clone.emit("python-task-progress", ProgressPayload {
-                            step: step_s.clone(),
-                            message: msg_s.clone(),
-                            done: false,
-                            log_line: line,
-                        });
+                        let _ = app_clone.emit(
+                            "python-task-progress",
+                            ProgressPayload {
+                                step: step_s.clone(),
+                                message: msg_s.clone(),
+                                done: false,
+                                log_line: line,
+                            },
+                        );
                     }
                 }
             }
         });
     }
 
-    let status = child.wait().map_err(|e| format!("等待 uv 完成失败: {}", e))?;
+    let status = child
+        .wait()
+        .map_err(|e| format!("等待 uv 完成失败: {}", e))?;
     if !status.success() {
         return Err(format!(
             "uv 命令失败 (exit code: {})",
@@ -127,9 +132,19 @@ pub fn pip_install_openviking(
         run_uv(
             app,
             uv_path,
-            &["pip", "install", "--python", venv_python, "--upgrade", &package],
+            &[
+                "pip",
+                "install",
+                "--python",
+                venv_python,
+                "--upgrade",
+                &package,
+            ],
             "upgrading",
-            &format!("升级 OpenViking{}...", version.map(|v| format!(" v{}", v)).unwrap_or_default()),
+            &format!(
+                "升级 OpenViking{}...",
+                version.map(|v| format!(" v{}", v)).unwrap_or_default()
+            ),
         )
     } else {
         run_uv(
@@ -137,7 +152,10 @@ pub fn pip_install_openviking(
             uv_path,
             &["pip", "install", "--python", venv_python, &package],
             "installing",
-            &format!("安装 OpenViking{}...", version.map(|v| format!(" v{}", v)).unwrap_or_default()),
+            &format!(
+                "安装 OpenViking{}...",
+                version.map(|v| format!(" v{}", v)).unwrap_or_default()
+            ),
         )
     }
 }
@@ -231,6 +249,10 @@ pub fn python_list_all(uv_path: &str) -> Result<Vec<String>, String> {
 }
 
 pub fn get_venv_python_path(app_data_dir: &std::path::Path) -> std::path::PathBuf {
-    let ext = if cfg!(target_os = "windows") { "python.exe" } else { "python3" };
+    let ext = if cfg!(target_os = "windows") {
+        "python.exe"
+    } else {
+        "python3"
+    };
     app_data_dir.join("python").join("bin").join(ext)
 }
