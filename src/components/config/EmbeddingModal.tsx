@@ -23,9 +23,6 @@ const REMOTE_ONLY_FIELDS = new Set([
   'embedding.dense.api_key',
   'embedding.dense.input',
 ]);
-const DIMENSION_PATH = 'embedding.dense.dimension';
-const BATCH_SIZE_PATH = 'embedding.dense.batch_size';
-
 const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
   volcengine: 'doubao-embedding-vision-251215',
   openai: 'text-embedding-3-small',
