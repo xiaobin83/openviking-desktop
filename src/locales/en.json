@@ -117,6 +117,7 @@
   "dashboard.data_overview": "Data Overview",
   "dashboard.rebuild_incomplete": "Previous embedding model rebuild was interrupted. Vector database may be stale.",
   "dashboard.rebuild_action": "Delete vector DB & restart",
+  "playground.apikey_copied": "API Key copied to clipboard. Please configure it in Playground.",
 
   "status.running": "Service Running",
   "status.stopped": "Service Stopped",

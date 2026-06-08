@@ -117,6 +117,7 @@
   "dashboard.data_overview": "数据概览",
   "dashboard.rebuild_incomplete": "上次 embedding 模型重建未完成，向量库可能过期。",
   "dashboard.rebuild_action": "删除向量库并重启",
+  "playground.apikey_copied": "API Key 已复制到剪贴板，请在 Playground 中配置",
 
   "status.running": "服务运行中",
   "status.stopped": "服务已停止",
