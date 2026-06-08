@@ -20,6 +20,7 @@ export default function Dashboard() {
   const [rebuildLockExists, setRebuildLockExists] = useState(false);
   const [embeddingRebuildNeeded, setEmbeddingRebuildNeeded] = useState(false);
   const [toast, setToast] = useState('');
+  const [playgroundOpening, setPlaygroundOpening] = useState(false);
 
   useEffect(() => {
     const unlisten = listen<string>('server-status-changed', (event) => {
@@ -117,6 +118,8 @@ export default function Dashboard() {
   };
 
   const handlePlayground = async () => {
+    if (playgroundOpening) return;
+    setPlaygroundOpening(true);
     try {
       const configStr = await invoke<string>('read_config');
       const config = JSON.parse(configStr) as OvConfig;
@@ -129,6 +132,7 @@ export default function Dashboard() {
     await new Promise((r) => setTimeout(r, 3000));
     setToast('');
     invoke('open_playground');
+    setPlaygroundOpening(false);
   };
 
   const handleRebuildEmbedding = async () => {
@@ -178,7 +182,7 @@ export default function Dashboard() {
       <div className="flex items-stretch gap-3">
         <button
           onClick={handlePlayground}
-          disabled={serverStatus !== 'running'}
+          disabled={serverStatus !== 'running' || playgroundOpening}
           className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl border px-4 backdrop-blur-sm transition-all duration-300 ${
             serverStatus === 'running'
               ? 'border-aurora-500/20 bg-aurora-500/10 text-aurora-400 hover:border-aurora-500/30 hover:bg-aurora-500/20 cursor-pointer'
