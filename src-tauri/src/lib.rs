@@ -1,8 +1,8 @@
+use std::io::Write;
+use std::process::Child;
+use std::sync::Mutex;
 use tauri::{Emitter, Manager};
 use tauri_plugin_opener::OpenerExt;
-use std::sync::Mutex;
-use std::process::Child;
-use std::io::Write;
 
 mod process;
 mod python_env;
@@ -77,12 +77,18 @@ async fn get_last_error(state: tauri::State<'_, ServerState>) -> Result<String, 
 }
 
 #[tauri::command]
-async fn start_server(state: tauri::State<'_, ServerState>, app: tauri::AppHandle) -> Result<String, String> {
+async fn start_server(
+    state: tauri::State<'_, ServerState>,
+    app: tauri::AppHandle,
+) -> Result<String, String> {
     process::spawn_server(&state, &app).await
 }
 
 #[tauri::command]
-async fn stop_server(state: tauri::State<'_, ServerState>, app: tauri::AppHandle) -> Result<String, String> {
+async fn stop_server(
+    state: tauri::State<'_, ServerState>,
+    app: tauri::AppHandle,
+) -> Result<String, String> {
     process::stop_server(&state, &app).await
 }
 
@@ -124,9 +130,7 @@ fn get_ov_conf_dir(state: &ServerState) -> String {
 
 fn get_onboarded_flag_path() -> String {
     let home = get_home_dir();
-    home.join(ONBOARDED_FLAG_NAME)
-        .to_string_lossy()
-        .to_string()
+    home.join(ONBOARDED_FLAG_NAME).to_string_lossy().to_string()
 }
 
 #[tauri::command]
@@ -139,7 +143,10 @@ async fn read_config(state: tauri::State<'_, ServerState>) -> Result<String, Str
 }
 
 #[tauri::command]
-async fn write_config(state: tauri::State<'_, ServerState>, config: String) -> Result<String, String> {
+async fn write_config(
+    state: tauri::State<'_, ServerState>,
+    config: String,
+) -> Result<String, String> {
     let ov_conf_path = get_ov_conf_path(&state);
     if let Some(parent) = std::path::Path::new(&ov_conf_path).parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("创建目录失败: {}", e))?;
@@ -158,12 +165,20 @@ async fn get_workspace(state: tauri::State<'_, ServerState>) -> Result<String, S
 }
 
 #[tauri::command]
-async fn set_workspace(app: tauri::AppHandle, state: tauri::State<'_, ServerState>, path: String) -> Result<String, String> {
+async fn set_workspace(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, ServerState>,
+    path: String,
+) -> Result<String, String> {
     let expanded = expand_tilde(&path);
-    let app_data_dir = app.path().app_data_dir().map_err(|e| format!("获取应用数据目录失败: {}", e))?;
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("获取应用数据目录失败: {}", e))?;
     std::fs::create_dir_all(&app_data_dir).map_err(|e| format!("创建应用数据目录失败: {}", e))?;
     let workspace_file = app_data_dir.join("workspace_path");
-    std::fs::write(&workspace_file, &expanded).map_err(|e| format!("保存工作空间路径失败: {}", e))?;
+    std::fs::write(&workspace_file, &expanded)
+        .map_err(|e| format!("保存工作空间路径失败: {}", e))?;
 
     std::fs::create_dir_all(&expanded).map_err(|e| format!("创建工作空间目录失败: {}", e))?;
 
@@ -178,7 +193,11 @@ async fn read_server_log(state: tauri::State<'_, ServerState>) -> Result<String,
     match std::fs::read_to_string(path) {
         Ok(content) => {
             let lines: Vec<&str> = content.lines().collect();
-            let start = if lines.len() > 100 { lines.len() - 100 } else { 0 };
+            let start = if lines.len() > 100 {
+                lines.len() - 100
+            } else {
+                0
+            };
             Ok(lines[start..].join("\n"))
         }
         Err(e) => Err(format!("读取日志失败: {}", e)),
@@ -308,8 +327,7 @@ fn get_python_version_internal(venv_python: &str) -> Option<String> {
         .output()
         .ok()?;
     let text = String::from_utf8_lossy(&output.stdout).to_string();
-    text.strip_prefix("Python ")
-        .map(|s| s.trim().to_string())
+    text.strip_prefix("Python ").map(|s| s.trim().to_string())
 }
 
 fn get_app_data_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
@@ -337,12 +355,15 @@ async fn install_openviking(
         if !python_env::python_is_installed(&uv_path, &version) {
             python_env::python_install(&app, &uv_path, &version)?;
         } else {
-            let _ = app.emit("python-task-progress", python_env::ProgressPayload {
-                step: "downloading_python".into(),
-                message: format!("Python {} 已存在，跳过下载", version),
-                done: false,
-                log_line: String::new(),
-            });
+            let _ = app.emit(
+                "python-task-progress",
+                python_env::ProgressPayload {
+                    step: "downloading_python".into(),
+                    message: format!("Python {} 已存在，跳过下载", version),
+                    done: false,
+                    log_line: String::new(),
+                },
+            );
         }
 
         let app_data_dir = get_app_data_dir(&app)?;
@@ -356,34 +377,52 @@ async fn install_openviking(
             .map_err(|e| format!("创建应用数据目录失败: {}", e))?;
         python_env::venv_create(&app, &uv_path, &version, &venv_target_str)?;
 
-        let venv_python = venv_target.join("bin")
-            .join(if cfg!(target_os = "windows") { "python.exe" } else { "python3" });
+        let venv_python = venv_target
+            .join("bin")
+            .join(if cfg!(target_os = "windows") {
+                "python.exe"
+            } else {
+                "python3"
+            });
         let venv_python_str = venv_python.to_string_lossy().to_string();
-        python_env::pip_install_openviking(&app, &uv_path, &venv_python_str, false, openviking_version.as_deref())?;
+        python_env::pip_install_openviking(
+            &app,
+            &uv_path,
+            &venv_python_str,
+            false,
+            openviking_version.as_deref(),
+        )?;
 
         Ok(venv_python_str)
-    }).await;
+    })
+    .await;
 
     INSTALLING.store(false, std::sync::atomic::Ordering::Release);
 
     match result {
         Ok(python_path) => {
             *state.venv_path.lock().unwrap() = python_path;
-            let _ = app.emit("python-task-progress", python_env::ProgressPayload {
-                step: "done".into(),
-                message: "安装完成".to_string(),
-                done: true,
-                log_line: String::new(),
-            });
+            let _ = app.emit(
+                "python-task-progress",
+                python_env::ProgressPayload {
+                    step: "done".into(),
+                    message: "安装完成".to_string(),
+                    done: true,
+                    log_line: String::new(),
+                },
+            );
             Ok("installed".to_string())
         }
         Err(e) => {
-            let _ = app.emit("python-task-progress", python_env::ProgressPayload {
-                step: "error".into(),
-                message: e.clone(),
-                done: true,
-                log_line: String::new(),
-            });
+            let _ = app.emit(
+                "python-task-progress",
+                python_env::ProgressPayload {
+                    step: "error".into(),
+                    message: e.clone(),
+                    done: true,
+                    log_line: String::new(),
+                },
+            );
             Err(e)
         }
     }
@@ -412,21 +451,27 @@ async fn upgrade_openviking(
 
     match result {
         Ok(()) => {
-            let _ = app.emit("python-task-progress", python_env::ProgressPayload {
-                step: "done".into(),
-                message: "升级完成".to_string(),
-                done: true,
-                log_line: String::new(),
-            });
+            let _ = app.emit(
+                "python-task-progress",
+                python_env::ProgressPayload {
+                    step: "done".into(),
+                    message: "升级完成".to_string(),
+                    done: true,
+                    log_line: String::new(),
+                },
+            );
             Ok("upgraded".to_string())
         }
         Err(e) => {
-            let _ = app.emit("python-task-progress", python_env::ProgressPayload {
-                step: "error".into(),
-                message: e.clone(),
-                done: true,
-                log_line: String::new(),
-            });
+            let _ = app.emit(
+                "python-task-progress",
+                python_env::ProgressPayload {
+                    step: "error".into(),
+                    message: e.clone(),
+                    done: true,
+                    log_line: String::new(),
+                },
+            );
             Err(e)
         }
     }
@@ -464,43 +509,53 @@ async fn upgrade_python(
         }
         python_env::venv_create(&app, &uv_path, &version, &venv_target.to_string_lossy())?;
 
-        let venv_python = venv_target.join("bin")
-            .join(if cfg!(target_os = "windows") { "python.exe" } else { "python3" });
+        let venv_python = venv_target
+            .join("bin")
+            .join(if cfg!(target_os = "windows") {
+                "python.exe"
+            } else {
+                "python3"
+            });
         let venv_python_str = venv_python.to_string_lossy().to_string();
         python_env::pip_install_openviking(&app, &uv_path, &venv_python_str, false, None)?;
 
         Ok(venv_python_str)
-    }).await;
+    })
+    .await;
 
     UPGRADING_PY.store(false, std::sync::atomic::Ordering::Release);
 
     match result {
         Ok(python_path) => {
             *state.venv_path.lock().unwrap() = python_path;
-            let _ = app.emit("python-task-progress", python_env::ProgressPayload {
-                step: "done".into(),
-                message: "Python 版本切换完成".to_string(),
-                done: true,
-                log_line: String::new(),
-            });
+            let _ = app.emit(
+                "python-task-progress",
+                python_env::ProgressPayload {
+                    step: "done".into(),
+                    message: "Python 版本切换完成".to_string(),
+                    done: true,
+                    log_line: String::new(),
+                },
+            );
             Ok("upgraded".to_string())
         }
         Err(e) => {
-            let _ = app.emit("python-task-progress", python_env::ProgressPayload {
-                step: "error".into(),
-                message: e.clone(),
-                done: true,
-                log_line: String::new(),
-            });
+            let _ = app.emit(
+                "python-task-progress",
+                python_env::ProgressPayload {
+                    step: "error".into(),
+                    message: e.clone(),
+                    done: true,
+                    log_line: String::new(),
+                },
+            );
             Err(e)
         }
     }
 }
 
 #[tauri::command]
-async fn get_python_versions(
-    state: tauri::State<'_, ServerState>,
-) -> Result<Vec<String>, String> {
+async fn get_python_versions(state: tauri::State<'_, ServerState>) -> Result<Vec<String>, String> {
     python_env::python_list_all(&state.uv_path)
 }
 
@@ -510,32 +565,28 @@ async fn get_openviking_versions() -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
-async fn get_uv_path(
-    state: tauri::State<'_, ServerState>,
-) -> Result<String, String> {
+async fn get_uv_path(state: tauri::State<'_, ServerState>) -> Result<String, String> {
     Ok(state.uv_path.clone())
 }
 
 pub fn open_playground_inner(app: &tauri::AppHandle, state: &ServerState) -> Result<(), String> {
     let port = *state.port.lock().unwrap();
     let url_str = format!("http://localhost:{}", port);
-    let url = url_str.parse::<tauri::Url>().map_err(|e| format!("Invalid URL: {}", e))?;
+    let url = url_str
+        .parse::<tauri::Url>()
+        .map_err(|e| format!("Invalid URL: {}", e))?;
 
     if let Some(window) = app.get_webview_window("playground") {
         let _ = window.show();
         let _ = window.set_focus();
     } else {
         let app_for_nav = app.clone();
-        tauri::WebviewWindowBuilder::new(
-            app,
-            "playground",
-            tauri::WebviewUrl::External(url),
-        )
-        .title("Playground")
-        .inner_size(850.0, 650.0)
-        .center()
-        .initialization_script(
-            r#"
+        tauri::WebviewWindowBuilder::new(app, "playground", tauri::WebviewUrl::External(url))
+            .title("Playground")
+            .inner_size(850.0, 650.0)
+            .center()
+            .initialization_script(
+                r#"
 document.addEventListener('click', function(e) {
     var a = e.target.closest('a');
     if (a && a.target === '_blank') {
@@ -548,54 +599,66 @@ window.open = function(url) {
     window.location.href = url;
 };
 "#,
-        )
-        .on_navigation(move |nav_url| {
-            if nav_url.host_str() == Some("localhost") {
-                true
-            } else {
-                if let Err(e) = app_for_nav.opener().open_url(nav_url.as_str(), None::<&str>) {
-                    log::error!("Failed to open URL in browser: {}", e);
+            )
+            .on_navigation(move |nav_url| {
+                if nav_url.host_str() == Some("localhost") {
+                    true
+                } else {
+                    if let Err(e) = app_for_nav
+                        .opener()
+                        .open_url(nav_url.as_str(), None::<&str>)
+                    {
+                        log::error!("Failed to open URL in browser: {}", e);
+                    }
+                    false
                 }
-                false
-            }
-        })
-        .build()
-        .map_err(|e| format!("Failed to create window: {}", e))?;
+            })
+            .build()
+            .map_err(|e| format!("Failed to create window: {}", e))?;
     }
 
     Ok(())
 }
 
 #[tauri::command]
-async fn open_playground(app: tauri::AppHandle, state: tauri::State<'_, ServerState>) -> Result<String, String> {
+async fn open_playground(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, ServerState>,
+) -> Result<String, String> {
     open_playground_inner(&app, &state)?;
     Ok("ok".to_string())
 }
 
 fn resolve_bundled_model_path_inner(app: &tauri::AppHandle) -> String {
     let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let dev_path = manifest_dir
-        .join("Resources/models/bge-small-zh-v1.5-f16.gguf");
-    let resource_dir = app.path().resource_dir()
+    let dev_path = manifest_dir.join("Resources/models/bge-small-zh-v1.5-f16.gguf");
+    let resource_dir = app
+        .path()
+        .resource_dir()
         .expect("failed to resolve resource dir");
-    let prod_path = resource_dir
-        .join("models/bge-small-zh-v1.5-f16.gguf");
-    let path = if dev_path.exists() { dev_path }
-               else { prod_path };
+    let prod_path = resource_dir.join("models/bge-small-zh-v1.5-f16.gguf");
+    let path = if dev_path.exists() {
+        dev_path
+    } else {
+        prod_path
+    };
     path.to_string_lossy().to_string()
 }
 
 #[tauri::command]
 fn resolve_bundled_model_path(app: tauri::AppHandle) -> Result<String, String> {
     let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let dev_path = manifest_dir
-        .join("Resources/models/bge-small-zh-v1.5-f16.gguf");
-    let resource_dir = app.path().resource_dir()
+    let dev_path = manifest_dir.join("Resources/models/bge-small-zh-v1.5-f16.gguf");
+    let resource_dir = app
+        .path()
+        .resource_dir()
         .map_err(|e| format!("failed to resolve resource dir: {}", e))?;
-    let prod_path = resource_dir
-        .join("models/bge-small-zh-v1.5-f16.gguf");
-    let path = if dev_path.exists() { dev_path }
-               else { prod_path };
+    let prod_path = resource_dir.join("models/bge-small-zh-v1.5-f16.gguf");
+    let path = if dev_path.exists() {
+        dev_path
+    } else {
+        prod_path
+    };
     Ok(path.to_string_lossy().to_string())
 }
 
@@ -618,8 +681,7 @@ fn delete_directory(path: String) -> Result<(), String> {
     if !p.exists() {
         return Ok(());
     }
-    std::fs::remove_dir_all(&p)
-        .map_err(|e| format!("删除目录失败 {}: {}", path, e))
+    std::fs::remove_dir_all(&p).map_err(|e| format!("删除目录失败 {}: {}", path, e))
 }
 
 #[tauri::command]
@@ -657,8 +719,7 @@ fn read_rebuild_lock(state: tauri::State<'_, ServerState>) -> Result<Option<Stri
 fn write_rebuild_lock(state: tauri::State<'_, ServerState>, content: String) -> Result<(), String> {
     let dir = get_ov_conf_dir(&state);
     let lock_path = std::path::Path::new(&dir).join("rebuild_lock.json");
-    std::fs::write(&lock_path, &content)
-        .map_err(|e| format!("写入锁文件失败: {}", e))
+    std::fs::write(&lock_path, &content).map_err(|e| format!("写入锁文件失败: {}", e))
 }
 
 #[tauri::command]
@@ -666,8 +727,7 @@ fn delete_rebuild_lock(state: tauri::State<'_, ServerState>) -> Result<(), Strin
     let dir = get_ov_conf_dir(&state);
     let lock_path = std::path::Path::new(&dir).join("rebuild_lock.json");
     if lock_path.exists() {
-        std::fs::remove_file(&lock_path)
-            .map_err(|e| format!("删除锁文件失败: {}", e))
+        std::fs::remove_file(&lock_path).map_err(|e| format!("删除锁文件失败: {}", e))
     } else {
         Ok(())
     }
@@ -683,17 +743,16 @@ async fn is_onboarded() -> Result<bool, String> {
 async fn mark_onboarded() -> Result<String, String> {
     let flag_path = get_onboarded_flag_path();
     if let Some(parent) = std::path::Path::new(&flag_path).parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("创建目录失败: {}", e))?;
+        std::fs::create_dir_all(parent).map_err(|e| format!("创建目录失败: {}", e))?;
     }
-    std::fs::write(&flag_path, "1")
-        .map_err(|e| format!("写入标志文件失败: {}", e))?;
+    std::fs::write(&flag_path, "1").map_err(|e| format!("写入标志文件失败: {}", e))?;
     Ok("ok".to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
