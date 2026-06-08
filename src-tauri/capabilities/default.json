@@ -2,7 +2,10 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Default capability for the main window",
-  "windows": ["dashboard", "playground"],
+  "windows": [
+    "dashboard",
+    "playground"
+  ],
   "permissions": [
     "core:default",
     "fs:default",
@@ -13,15 +16,22 @@
     {
       "identifier": "fs:scope",
       "allow": [
-        { "path": "$HOME/.openviking/**" },
-        { "path": "$HOME/Library/Logs/OpenViking/**" },
-        { "path": "$HOME/Library/Application Support/OpenViking/**" }
+        {
+          "path": "$HOME/.openviking/**"
+        },
+        {
+          "path": "$HOME/Library/Logs/OpenViking/**"
+        },
+        {
+          "path": "$HOME/Library/Application Support/OpenViking/**"
+        }
       ]
     },
     "shell:default",
     "shell:allow-spawn",
     "shell:allow-execute",
     "dialog:default",
-    "opener:default"
+    "opener:default",
+    "clipboard-manager:default"
   ]
 }

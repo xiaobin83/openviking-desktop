@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { checkHealth, getDashboardSummary, getMemoryStats, setRootApiKey, setTenant } from '../../lib/api';
 import type { OvConfig } from '../../lib/types';
 import type { DashboardSummary, MemoryStats, PythonEnvState } from '../../lib/types';
@@ -125,7 +126,7 @@ export default function Dashboard() {
       const config = JSON.parse(configStr) as OvConfig;
       const key = config.server?.root_api_key;
       if (key) {
-        await navigator.clipboard.writeText(key);
+        await writeText(key);
       }
     } catch {}
     setToast(t('playground.apikey_copied'));
