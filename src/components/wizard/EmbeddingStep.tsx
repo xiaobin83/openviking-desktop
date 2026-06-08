@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { OvConfig } from '../../lib/types';
 
@@ -16,12 +17,36 @@ const PROVIDER_OPTIONS = [
   { label: 'vikingdb', value: 'vikingdb' },
 ];
 
+const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
+  local: 'bge-small-zh-v1.5-f16',
+  volcengine: 'doubao-embedding-vision-251215',
+  openai: 'text-embedding-3-small',
+  jina: 'jina-embeddings-v3',
+  gemini: 'text-embedding-004',
+  dashscope: 'text-embedding-v3',
+};
+
 export default function EmbeddingStep({ formData, onChange }: EmbeddingStepProps) {
   const { t } = useTranslation();
 
   const provider = formData.embedding?.dense?.provider || 'local';
   const isLocal = provider === 'local';
   const isLocalOrVikingdb = isLocal || provider === 'vikingdb';
+
+  useEffect(() => {
+    if (!formData.embedding?.dense?.model) {
+      const defaultModel = PROVIDER_DEFAULT_MODEL[provider];
+      if (defaultModel) {
+        onChange({
+          ...formData,
+          embedding: {
+            ...formData.embedding,
+            dense: { ...formData.embedding?.dense, model: defaultModel, provider },
+          },
+        });
+      }
+    }
+  }, [provider]);
 
   const updateField = (path: string, value: unknown) => {
     const parts = path.split('.');
@@ -35,6 +60,26 @@ export default function EmbeddingStep({ formData, onChange }: EmbeddingStepProps
     onChange(newData);
   };
 
+  const handleProviderChange = (newProvider: string) => {
+    const updated: any = {
+      ...formData.embedding?.dense,
+      provider: newProvider,
+      model: PROVIDER_DEFAULT_MODEL[newProvider] || formData.embedding?.dense?.model || '',
+    };
+    if (newProvider === 'local') {
+      delete updated.api_key;
+      delete updated.api_base;
+      updated.dimension = 512;
+    } else {
+      delete updated.model_path;
+      if (updated.dimension === undefined) updated.dimension = 1024;
+      if (updated.batch_size === undefined) updated.batch_size = 32;
+    }
+    onChange({
+      ...formData,
+      embedding: { ...formData.embedding, dense: updated },
+    });
+  };
   const fieldStyle = "w-full rounded-lg bg-surface-hover border border-border-subtle px-3 py-2.5 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-aurora-400/50 transition-colors";
   const labelStyle = "block text-xs font-semibold text-text-secondary mb-1.5";
 
@@ -47,9 +92,7 @@ export default function EmbeddingStep({ formData, onChange }: EmbeddingStepProps
         <label className={labelStyle}>{t('ai.provider')}</label>
         <select
           value={provider}
-          onChange={(e) => {
-            updateField('embedding.dense.provider', e.target.value);
-          }}
+          onChange={(e) => handleProviderChange(e.target.value)}
           className={fieldStyle}
         >
           {PROVIDER_OPTIONS.map((opt) => (
@@ -100,7 +143,7 @@ export default function EmbeddingStep({ formData, onChange }: EmbeddingStepProps
               type="text"
               value={formData.embedding?.dense?.model || ''}
               onChange={(e) => updateField('embedding.dense.model', e.target.value)}
-              placeholder="doubao-embedding-vision-251215"
+              placeholder={PROVIDER_DEFAULT_MODEL[provider] || 'model-name'}
               className={fieldStyle}
             />
           </div>
