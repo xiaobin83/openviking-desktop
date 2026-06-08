@@ -19,6 +19,7 @@ export default function Dashboard() {
   const [pythonInstalled, setPythonInstalled] = useState(false);
   const [rebuildLockExists, setRebuildLockExists] = useState(false);
   const [embeddingRebuildNeeded, setEmbeddingRebuildNeeded] = useState(false);
+  const [toast, setToast] = useState('');
 
   useEffect(() => {
     const unlisten = listen<string>('server-status-changed', (event) => {
@@ -115,6 +116,20 @@ export default function Dashboard() {
     setPythonInstalled(state.installed);
   };
 
+  const handlePlayground = async () => {
+    try {
+      const configStr = await invoke<string>('read_config');
+      const config = JSON.parse(configStr) as OvConfig;
+      const key = config.server?.root_api_key;
+      if (key) {
+        await navigator.clipboard.writeText(key);
+      }
+    } catch {}
+    invoke('open_playground');
+    setToast(t('playground.apikey_copied'));
+    setTimeout(() => setToast(''), 4000);
+  };
+
   const handleRebuildEmbedding = async () => {
     try {
       await invoke('stop_server');
@@ -161,7 +176,7 @@ export default function Dashboard() {
       </div>
       <div className="flex items-stretch gap-3">
         <button
-          onClick={() => invoke('open_playground')}
+          onClick={handlePlayground}
           disabled={serverStatus !== 'running'}
           className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl border px-4 backdrop-blur-sm transition-all duration-300 ${
             serverStatus === 'running'
@@ -195,6 +210,12 @@ export default function Dashboard() {
         </>
       )}
         </>
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-surface-elevated border border-aurora-500/30 rounded-xl px-5 py-3 shadow-xl shadow-aurora-500/10 text-sm text-aurora-400 animate-slide-up transition-opacity">
+          {toast}
+        </div>
       )}
     </div>
   );
