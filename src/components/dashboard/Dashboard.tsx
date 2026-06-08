@@ -125,9 +125,10 @@ export default function Dashboard() {
         await navigator.clipboard.writeText(key);
       }
     } catch {}
-    invoke('open_playground');
     setToast(t('playground.apikey_copied'));
-    setTimeout(() => setToast(''), 4000);
+    await new Promise((r) => setTimeout(r, 3000));
+    setToast('');
+    invoke('open_playground');
   };
 
   const handleRebuildEmbedding = async () => {
