@@ -5,6 +5,7 @@ import { getDefaultConfigJson } from '../../lib/config-fields';
 import type { OvConfig, PythonEnvState } from '../../lib/types';
 import WizardProgress from './WizardProgress';
 import InstallStep from './InstallStep';
+import WorkspaceStep from './WorkspaceStep';
 import EmbeddingStep from './EmbeddingStep';
 import VlmStep from './VlmStep';
 import ApiKeyStep from './ApiKeyStep';
@@ -13,7 +14,7 @@ interface OnboardingWizardProps {
   onComplete: () => void;
 }
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
 const PREDEFINED_VLM_PROVIDERS = ['volcengine', 'openai', 'openai-codex', 'deepseek', 'kimi', 'glm'];
 
 export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
@@ -63,7 +64,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   }, [formData.vlm]);
 
   const isStepValid = useCallback(() => {
-    if (stepIndex === 2) return isVlmValid();
+    if (stepIndex === 3) return isVlmValid();
     return true;
   }, [stepIndex, isVlmValid]);
 
@@ -114,19 +115,26 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
         );
       case 1:
         return (
-          <EmbeddingStep
+          <WorkspaceStep
             formData={formData}
             onChange={(data) => setFormData({ ...formData, ...data })}
           />
         );
       case 2:
         return (
-          <VlmStep
+          <EmbeddingStep
             formData={formData}
             onChange={(data) => setFormData({ ...formData, ...data })}
           />
         );
       case 3:
+        return (
+          <VlmStep
+            formData={formData}
+            onChange={(data) => setFormData({ ...formData, ...data })}
+          />
+        );
+      case 4:
         return (
           <ApiKeyStep
             formData={formData}
