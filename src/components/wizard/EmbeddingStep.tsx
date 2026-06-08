@@ -34,15 +34,17 @@ export default function EmbeddingStep({ formData, onChange }: EmbeddingStepProps
   const isLocalOrVikingdb = isLocal || provider === 'vikingdb';
 
   useEffect(() => {
-    if (!formData.embedding?.dense?.model) {
+    const dense = formData.embedding?.dense;
+    if (!dense?.model || (provider === 'local' && dense.dimension !== 512)) {
       const defaultModel = PROVIDER_DEFAULT_MODEL[provider];
       if (defaultModel) {
+        const updated: any = { ...dense, model: defaultModel, provider };
+        if (provider === 'local') {
+          updated.dimension = 512;
+        }
         onChange({
           ...formData,
-          embedding: {
-            ...formData.embedding,
-            dense: { ...formData.embedding?.dense, model: defaultModel, provider },
-          },
+          embedding: { ...formData.embedding, dense: updated },
         });
       }
     }
