@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
-import { checkHealth, getDashboardSummary, getMemoryStats, setRootApiKey, setTenant } from '../../lib/api';
+import { checkHealth, getDashboardSummary, getMemoryStats, setRootApiKey, getRootApiKey, setTenant } from '../../lib/api';
 import type { OvConfig } from '../../lib/types';
 import type { DashboardSummary, MemoryStats, PythonEnvState } from '../../lib/types';
 import StatusCard from './StatusCard';
@@ -122,15 +122,22 @@ export default function Dashboard() {
     if (playgroundOpening) return;
     setPlaygroundOpening(true);
     try {
-      const configStr = await invoke<string>('read_config');
-      const config = JSON.parse(configStr) as OvConfig;
-      const key = config.server?.root_api_key;
+      let key = getRootApiKey();
+      if (!key) {
+        const configStr = await invoke<string>('read_config');
+        const config = JSON.parse(configStr) as OvConfig;
+        key = config.server?.root_api_key ?? '';
+      }
       if (key) {
         await writeText(key);
+      } else {
+        console.warn('[Playground] no API key available to copy');
       }
-    } catch {}
+    } catch (e) {
+      console.error('[Playground] clipboard error:', e);
+    }
     setToast(t('playground.apikey_copied'));
-    await new Promise((r) => setTimeout(r, 3000));
+    await new Promise((r) => setTimeout(r, 2000));
     setToast('');
     invoke('open_playground');
     setPlaygroundOpening(false);
