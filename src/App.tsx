@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getDefaultConfigJson } from './lib/config-fields';
 import OnboardingWizard from './components/wizard/OnboardingWizard';
 import Dashboard from './components/dashboard/Dashboard';
@@ -33,8 +34,14 @@ function App() {
   }, [needsOnboarding]);
 
   useEffect(() => {
-    const updateTitle = () => {
-      document.title = t('app.pageTitle');
+    const updateTitle = async () => {
+      const title = t('app.pageTitle');
+      document.title = title;
+      try {
+        await getCurrentWindow().setTitle(title);
+      } catch (e) {
+        console.warn('[App] failed to set window title:', e);
+      }
     };
     updateTitle();
     i18n.on('languageChanged', updateTitle);
