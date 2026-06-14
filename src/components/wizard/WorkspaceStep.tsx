@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -9,10 +9,21 @@ interface WorkspaceStepProps {
   onChange: (data: Partial<OvConfig>) => void;
 }
 
+const DEFAULT_OV_DIR = '~/.openviking';
+
 export default function WorkspaceStep({ formData, onChange }: WorkspaceStepProps) {
   const { t } = useTranslation();
-  const workspace = formData.storage?.workspace || '~/.openviking/data';
-  const [draft, setDraft] = useState(workspace);
+  const [draft, setDraft] = useState(DEFAULT_OV_DIR);
+  const initialised = useRef(false);
+
+  // 组件挂载时将默认工作目录同步到 Rust ServerState，
+  // 确保后续 write_config 写入正确的 ov.conf 路径
+  useEffect(() => {
+    if (initialised.current) return;
+    initialised.current = true;
+    persistWorkspace(DEFAULT_OV_DIR);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleBrowse = async () => {
     const selected = await open({
@@ -30,9 +41,14 @@ export default function WorkspaceStep({ formData, onChange }: WorkspaceStepProps
     try {
       await invoke('set_workspace', { path });
     } catch {}
+    // 从 Rust 读取展开后的绝对路径（expand_tilde 在 Rust 侧处理）
+    let expanded = path;
+    try {
+      expanded = await invoke<string>('get_workspace');
+    } catch {}
     onChange({
       ...formData,
-      storage: { workspace: path, vectordb: { backend: 'local' }, agfs: { backend: 'local' } },
+      storage: { workspace: expanded.replace(/\/+$/, '') + '/data', vectordb: { backend: 'local' }, agfs: { backend: 'local' } },
     });
   };
 
@@ -46,17 +62,17 @@ export default function WorkspaceStep({ formData, onChange }: WorkspaceStepProps
 
   return (
     <div className="space-y-6">
-      <h2 className="text-lg font-bold text-text-primary">Workspace</h2>
-      <p className="text-sm text-text-muted">{t('basic.workspace_hint')}</p>
+      <h2 className="text-lg font-bold text-text-primary">{t('wizard.workspace_title')}</h2>
+      <p className="text-sm text-text-muted">{t('wizard.workspace_hint')}</p>
 
       <div>
-        <label className={labelStyle}>{t('basic.workspace')}</label>
+        <label className={labelStyle}>{t('wizard.workspace_label')}</label>
         <div className="flex gap-2">
           <input
             type="text"
             value={draft}
             onChange={(e) => handleChange(e.target.value)}
-            placeholder={t('basic.workspace_placeholder')}
+            placeholder={t('wizard.workspace_placeholder')}
             className={fieldStyle + " flex-1"}
           />
           <button

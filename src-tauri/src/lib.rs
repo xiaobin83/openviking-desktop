@@ -182,6 +182,11 @@ async fn set_workspace(
 
     std::fs::create_dir_all(&expanded).map_err(|e| format!("创建工作空间目录失败: {}", e))?;
 
+    // 同时创建 data/ 子目录（实际知识库数据存储目录）
+    let data_dir = std::path::Path::new(&expanded).join("data");
+    std::fs::create_dir_all(&data_dir)
+        .map_err(|e| format!("创建工作空间 data 目录失败: {}", e))?;
+
     *state.workspace_path.lock().unwrap() = expanded;
 
     Ok("ok".to_string())

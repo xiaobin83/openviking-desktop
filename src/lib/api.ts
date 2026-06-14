@@ -9,6 +9,10 @@ export function setRootApiKey(key: string) {
   rootApiKey = key;
 }
 
+export function getRootApiKey(): string {
+  return rootApiKey;
+}
+
 export function setTenant(accountId: string, userId: string) {
   account = accountId;
   user = userId;
