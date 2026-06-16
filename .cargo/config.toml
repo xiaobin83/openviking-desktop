@@ -1,0 +1,6 @@
+[target.x86_64-pc-windows-msvc]
+linker = "lld-link"
+# 交叉编译 Windows 需要 Windows SDK 库文件（kernel32.lib 等）。
+# 推荐使用 cargo-xwin 自动管理：cargo install cargo-xwin && cargo xwin build --target x86_64-pc-windows-msvc --release
+# 或者手动下载 SDK 后取消注释以下配置：
+# rustflags = ["-Lnative=<sdk-crt-path>", "-Lnative=<sdk-um-path>", "-Lnative=<sdk-ucrt-path>"]

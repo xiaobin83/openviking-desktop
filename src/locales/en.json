@@ -17,7 +17,7 @@
   "config.saved_tip": "Config saved, restart service to apply",
 
   "basic.workspace": "Workspace",
-  "basic.workspace_placeholder": "e.g. /Users/xxx/.openviking",
+  "basic.workspace_placeholder": "e.g. /home/user/.openviking (Unix) or C:\\Users\\user\\OpenViking (Windows)",
   "basic.workspace_hint": "After setting the workspace directory, the config will be read/saved from ov.conf in that directory",
   "basic.workspace_apply": "Apply",
   "basic.workspace_browse": "Browse",
@@ -202,7 +202,7 @@
   "wizard.workspace_title": "OpenViking Working Directory",
 "wizard.workspace_hint": "Choose the OpenViking working directory. It will contain data/ (knowledge base) and ov.conf (configuration).",
 "wizard.workspace_label": "Working Directory",
-"wizard.workspace_placeholder": "e.g. /Users/xxx/.openviking",
+"wizard.workspace_placeholder": "e.g. /home/user/.openviking (Unix) or C:\\Users\\user\\OpenViking (Windows)",
 "wizard.next": "Next",
   "wizard.back": "Back",
   "wizard.complete": "Complete Setup",

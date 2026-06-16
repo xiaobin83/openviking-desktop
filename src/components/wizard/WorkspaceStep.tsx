@@ -9,19 +9,19 @@ interface WorkspaceStepProps {
   onChange: (data: Partial<OvConfig>) => void;
 }
 
-const DEFAULT_OV_DIR = '~/.openviking';
-
 export default function WorkspaceStep({ formData, onChange }: WorkspaceStepProps) {
   const { t } = useTranslation();
-  const [draft, setDraft] = useState(DEFAULT_OV_DIR);
+  const [draft, setDraft] = useState('');
   const initialised = useRef(false);
 
-  // 组件挂载时将默认工作目录同步到 Rust ServerState，
+  // 组件挂载时获取平台默认工作目录并同步到 Rust ServerState，
   // 确保后续 write_config 写入正确的 ov.conf 路径
   useEffect(() => {
     if (initialised.current) return;
     initialised.current = true;
-    persistWorkspace(DEFAULT_OV_DIR);
+    invoke<string>('get_default_workspace')
+      .then(persistWorkspace)
+      .catch(() => persistWorkspace('~/.openviking'));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

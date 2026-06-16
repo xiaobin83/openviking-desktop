@@ -104,6 +104,22 @@ pub fn expand_tilde(path: &str) -> String {
     }
 }
 
+pub fn get_default_workspace_path() -> String {
+    #[cfg(target_os = "windows")]
+    {
+        get_home_dir().join("OpenViking").to_string_lossy().to_string()
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        "~/.openviking".to_string()
+    }
+}
+
+#[tauri::command]
+fn get_default_workspace() -> String {
+    get_default_workspace_path()
+}
+
 pub fn get_ov_conf_path(state: &ServerState) -> String {
     let workspace = state.workspace_path.lock().unwrap().clone();
     if workspace.is_empty() {
@@ -283,6 +299,7 @@ pub struct OpenvikingState {
 
 #[tauri::command]
 async fn check_openviking_state(
+    app: tauri::AppHandle,
     state: tauri::State<'_, ServerState>,
 ) -> Result<OpenvikingState, String> {
     let installed = !state.venv_path.lock().unwrap().is_empty();
@@ -298,10 +315,26 @@ async fn check_openviking_state(
         match python_env::pip_show_openviking(uv_path, &venv_python) {
             Ok(Some(v)) => {
                 current_version = Some(v.clone());
-                *state.openviking_version.lock().unwrap() = v;
+                *state.openviking_version.lock().unwrap() = v.clone();
+                // 持久化版本号，避免下次启动读取失败
+                let app_data_dir = app.path().app_data_dir().expect("no app data dir");
+                let _ = std::fs::write(app_data_dir.join("openviking_version"), &v);
             }
-            Ok(None) => log::warn!("check_openviking_state: openviking not found in venv"),
-            Err(e) => log::warn!("check_openviking_state: pip_show error: {}", e),
+            Ok(None) => {
+                log::warn!("check_openviking_state: openviking not found in venv");
+                // fallback: 使用上次缓存的版本号
+                let cached = state.openviking_version.lock().unwrap().clone();
+                if !cached.is_empty() {
+                    current_version = Some(cached);
+                }
+            }
+            Err(e) => {
+                log::warn!("check_openviking_state: pip_show error: {}", e);
+                let cached = state.openviking_version.lock().unwrap().clone();
+                if !cached.is_empty() {
+                    current_version = Some(cached);
+                }
+            }
         }
 
         match python_env::pip_index_latest_version().await {
@@ -383,7 +416,11 @@ async fn install_openviking(
         python_env::venv_create(&app, &uv_path, &version, &venv_target_str)?;
 
         let venv_python = venv_target
-            .join("bin")
+            .join(if cfg!(target_os = "windows") {
+                "Scripts"
+            } else {
+                "bin"
+            })
             .join(if cfg!(target_os = "windows") {
                 "python.exe"
             } else {
@@ -515,7 +552,11 @@ async fn upgrade_python(
         python_env::venv_create(&app, &uv_path, &version, &venv_target.to_string_lossy())?;
 
         let venv_python = venv_target
-            .join("bin")
+            .join(if cfg!(target_os = "windows") {
+                "Scripts"
+            } else {
+                "bin"
+            })
             .join(if cfg!(target_os = "windows") {
                 "python.exe"
             } else {
@@ -641,7 +682,7 @@ fn resolve_bundled_model_path_inner(app: &tauri::AppHandle) -> String {
         .path()
         .resource_dir()
         .expect("failed to resolve resource dir");
-    let prod_path = resource_dir.join("models/bge-small-zh-v1.5-f16.gguf");
+    let prod_path = resource_dir.join("Resources/models/bge-small-zh-v1.5-f16.gguf");
     let path = if dev_path.exists() {
         dev_path
     } else {
@@ -658,7 +699,7 @@ fn resolve_bundled_model_path(app: tauri::AppHandle) -> Result<String, String> {
         .path()
         .resource_dir()
         .map_err(|e| format!("failed to resolve resource dir: {}", e))?;
-    let prod_path = resource_dir.join("models/bge-small-zh-v1.5-f16.gguf");
+    let prod_path = resource_dir.join("Resources/models/bge-small-zh-v1.5-f16.gguf");
     let path = if dev_path.exists() {
         dev_path
     } else {
@@ -741,7 +782,15 @@ fn delete_rebuild_lock(state: tauri::State<'_, ServerState>) -> Result<(), Strin
 #[tauri::command]
 async fn is_onboarded() -> Result<bool, String> {
     let flag_path = get_onboarded_flag_path();
-    Ok(std::path::Path::new(&flag_path).exists())
+    if std::path::Path::new(&flag_path).exists() {
+        return Ok(true);
+    }
+    // Fallback: check old location for backward compatibility
+    let old_flag_path = get_home_dir()
+        .join(".openviking/.onboarded")
+        .to_string_lossy()
+        .to_string();
+    Ok(std::path::Path::new(&old_flag_path).exists())
 }
 
 #[tauri::command]
@@ -805,7 +854,7 @@ pub fn run() {
                 let resource_dir = app.path().resource_dir()
                     .expect("failed to resolve resource dir");
                 let prod_path = resource_dir
-                    .join("uv")
+                    .join("Resources/uv")
                     .join(target_triple)
                     .join(uv_binary_name);
                 if dev_path.exists() { dev_path }
@@ -845,6 +894,15 @@ pub fn run() {
             
             let expanded_workspace_path = expand_tilde(&workspace_path);
 
+            let cached_version = {
+                let ver_file = app_data_dir.join("openviking_version");
+                if ver_file.exists() {
+                    std::fs::read_to_string(&ver_file).unwrap_or_default()
+                } else {
+                    String::new()
+                }
+            };
+
             app.manage(ServerState {
                 child: Mutex::new(None),
                 status: Mutex::new("stopped".to_string()),
@@ -855,7 +913,7 @@ pub fn run() {
                 desktop_log_path: desktop_log_path.clone(),
                 last_error: Mutex::new(String::new()),
                 uv_path,
-                openviking_version: Mutex::new(String::new()),
+                openviking_version: Mutex::new(cached_version),
             });
 
             tray::create_tray(app.handle())?;
@@ -872,7 +930,7 @@ pub fn run() {
                     let model_path = resolve_bundled_model_path_inner(app.handle());
                     let default_config = serde_json::json!({
                         "server": { "host": "127.0.0.1", "port": 1933, "cors_origins": ["*"] },
-                        "storage": { "workspace": "~/.openviking/data", "vectordb": { "backend": "local" }, "agfs": { "backend": "local" } },
+                        "storage": { "workspace": format!("{}/data", get_default_workspace_path()), "vectordb": { "backend": "local" }, "agfs": { "backend": "local" } },
                         "embedding": {
                             "dense": { "provider": "local", "model": "bge-small-zh-v1.5-f16", "model_path": model_path },
                             "max_concurrent": 10, "max_retries": 3,
@@ -924,6 +982,7 @@ pub fn run() {
             read_config,
             write_config,
             get_workspace,
+            get_default_workspace,
             set_workspace,
             read_server_log,
             open_log_file,
@@ -960,6 +1019,7 @@ pub fn run() {
         .expect("error while building tauri application")
         .run(|app_handle, event| {
             match event {
+                #[cfg(target_os = "macos")]
                 tauri::RunEvent::Reopen { .. } => {
                     if let Some(window) = app_handle.get_webview_window("dashboard") {
                         let _ = window.show();

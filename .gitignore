@@ -12,5 +12,11 @@ src-tauri/Resources/uv/
 # GGUF models (downloaded by scripts/download-gguf.sh)
 src-tauri/Resources/models/*.gguf
 
+# cargo-xwin local cache
+src-tauri/.cargo-home/
+
+*.deb
+
 # development artifacts
 .superpowers/
+.omo
