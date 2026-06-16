@@ -249,10 +249,10 @@ pub fn python_list_all(uv_path: &str) -> Result<Vec<String>, String> {
 }
 
 pub fn get_venv_python_path(app_data_dir: &std::path::Path) -> std::path::PathBuf {
-    let ext = if cfg!(target_os = "windows") {
-        "python.exe"
+    let (scripts_dir, ext) = if cfg!(target_os = "windows") {
+        ("Scripts", "python.exe")
     } else {
-        "python3"
+        ("bin", "python3")
     };
-    app_data_dir.join("python").join("bin").join(ext)
+    app_data_dir.join("python").join(scripts_dir).join(ext)
 }
