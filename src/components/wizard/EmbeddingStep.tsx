@@ -39,19 +39,39 @@ export default function EmbeddingStep({ formData, onChange, hasLocalEmbed }: Emb
   const isLocalOrVikingdb = isLocal || provider === 'vikingdb';
 
   useEffect(() => {
-    const dense = formData.embedding?.dense;
-    if (!dense?.model || (provider === 'local' && dense.dimension !== 512)) {
-      const defaultModel = PROVIDER_DEFAULT_MODEL[provider];
-      if (defaultModel) {
-        const updated: any = { ...dense, model: defaultModel, provider };
-        if (provider === 'local') {
-          updated.dimension = 512;
-        }
-        onChange({
-          ...formData,
-          embedding: { ...formData.embedding, dense: updated },
-        });
+    const dense = { ...formData.embedding?.dense };
+    const defaultModel = PROVIDER_DEFAULT_MODEL[provider];
+    if (!defaultModel) return;
+
+    const updated: any = { ...dense, provider };
+
+    // 切换 provider 时总是更新 model
+    updated.model = defaultModel;
+
+    if (provider === 'local') {
+      delete updated.api_key;
+      delete updated.api_base;
+      updated.dimension = 512;
+    } else {
+      delete updated.model_path;
+      if (dense.provider === 'local') {
+        // 从 local 切换到其他 provider 时，重置 dimension
+        updated.dimension = provider === 'vikingdb' ? 512 : 1024;
       }
+      if (updated.dimension === undefined) updated.dimension = 1024;
+      if (updated.batch_size === undefined) updated.batch_size = 32;
+    }
+
+    // 只在有实际变更时才触发
+    const prev = formData.embedding?.dense;
+    if (JSON.stringify({ ...prev, provider: undefined, model: undefined, dimension: undefined, model_path: '', api_key: '', api_base: '' })
+        !== JSON.stringify({ ...updated, provider: undefined, model: undefined, dimension: undefined, model_path: '', api_key: '', api_base: '' })
+        || prev?.provider !== provider
+        || prev?.model !== updated.model) {
+      onChange({
+        ...formData,
+        embedding: { ...formData.embedding, dense: updated },
+      });
     }
   }, [provider]);
 
@@ -71,16 +91,12 @@ export default function EmbeddingStep({ formData, onChange, hasLocalEmbed }: Emb
     const updated: any = {
       ...formData.embedding?.dense,
       provider: newProvider,
-      model: PROVIDER_DEFAULT_MODEL[newProvider] || formData.embedding?.dense?.model || '',
     };
     if (newProvider === 'local') {
       delete updated.api_key;
       delete updated.api_base;
-      updated.dimension = 512;
     } else {
       delete updated.model_path;
-      if (updated.dimension === undefined) updated.dimension = 1024;
-      if (updated.batch_size === undefined) updated.batch_size = 32;
     }
     onChange({
       ...formData,
