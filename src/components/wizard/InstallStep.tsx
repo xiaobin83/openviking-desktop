@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type { PythonEnvState, PythonTaskProgress } from '../../lib/types';
 import { DEFAULT_PYTHON_VERSION } from '../../lib/constants';
+import { CheckIcon, ArrowRightIcon, ChevronDownIcon, ChevronRightIcon } from '../Icons';
 
 interface InstallStepProps {
   isInstalled: boolean;
@@ -258,9 +259,9 @@ export default function InstallStep({ isInstalled, onInstalled, onInstallComplet
                   'bg-surface-hover text-text-muted'
                 }`}>
                   {isPast ? (
-                    <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                    <CheckIcon className="w-3 h-3" />
                   ) : isActive ? (
-                    <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
+                    <ArrowRightIcon className="w-3 h-3" />
                   ) : (
                     i + 1
                   )}
@@ -292,9 +293,9 @@ export default function InstallStep({ isInstalled, onInstalled, onInstallComplet
             className="text-[11px] text-text-muted hover:text-text-primary transition-colors"
           >
             {showLogs ? (
-              <svg className="w-3 h-3 inline-block mr-0.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
+              <ChevronDownIcon className="w-3 h-3 inline-block mr-0.5" />
             ) : (
-              <svg className="w-3 h-3 inline-block mr-0.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd"/></svg>
+              <ChevronRightIcon className="w-3 h-3 inline-block mr-0.5" />
             )} {t('python.log_output')} ({logs.length} lines)
           </button>
           {showLogs && (
