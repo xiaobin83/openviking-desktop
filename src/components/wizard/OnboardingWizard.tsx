@@ -31,7 +31,6 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     const defaults = JSON.parse(getDefaultConfigJson()) as OvConfig;
     // Ensure local embedding defaults for the wizard
     if (!defaults.embedding?.dense) defaults.embedding = { ...defaults.embedding, dense: {} };
-    defaults.embedding.dense = { ...defaults.embedding.dense, provider: 'local' };
     return defaults;
   });
 
