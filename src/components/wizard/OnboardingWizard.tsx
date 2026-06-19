@@ -23,6 +23,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   const [isInstalled, setIsInstalled] = useState(false);
   const [checkingInstall, setCheckingInstall] = useState(true);
   const [error, setError] = useState('');
+  const [isInstalling, setIsInstalling] = useState(false);
 
   // Initialize form data from default config
   const [formData, setFormData] = useState<Partial<OvConfig>>(() => {
@@ -111,6 +112,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
             isInstalled={isInstalled}
             onInstalled={() => setIsInstalled(true)}
             onInstallComplete={() => setStepIndex(1)}
+            onInstallingChange={setIsInstalling}
           />
         );
       case 1:
@@ -197,7 +199,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                 ) : (
                   <button
                     onClick={handleNext}
-                    disabled={!isStepValid()}
+                    disabled={!isStepValid() || isInstalling}
                     className="rounded-xl bg-aurora-500 hover:bg-aurora-600 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2.5 text-sm font-semibold text-white transition-colors"
                   >
                     {t('wizard.next')}
