@@ -71,7 +71,7 @@ export default function ConfigFieldRenderer({ field, value, onChange }: ConfigFi
             <button
               type="button"
               onClick={() => writeText((value as string) ?? '')}
-              className="px-3 py-2 rounded-md border border-border-subtle bg-surface-elevated text-xs text-text-muted hover:text-text-primary hover:border-border-active transition-colors"
+              className="px-3 py-2 bg-surface-elevated border border-border-subtle rounded-md text-sm text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors whitespace-nowrap"
               title={t('config.copy')}
             >
               {t('config.copy')}
