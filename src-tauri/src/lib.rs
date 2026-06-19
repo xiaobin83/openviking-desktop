@@ -10,6 +10,7 @@ mod tray;
 
 const DEFAULT_OV_CONF_PATH: &str = ".openviking/ov.conf";
 const ONBOARDED_FLAG_NAME: &str = ".openviking/.onboarded";
+const DEFAULT_PYTHON_VERSION: &str = "3.13";
 
 fn get_home_dir() -> std::path::PathBuf {
     dirs::home_dir().expect("no home dir")
@@ -390,7 +391,7 @@ async fn install_openviking(
     python_version: Option<String>,
     openviking_version: Option<String>,
 ) -> Result<String, String> {
-    let version = python_version.unwrap_or_else(|| "3.12".to_string());
+    let version = python_version.unwrap_or_else(|| DEFAULT_PYTHON_VERSION.to_string());
     let uv_path = state.uv_path.clone();
 
     static INSTALLING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);

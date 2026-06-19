@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type { PythonEnvState, PythonTaskProgress } from '../../lib/types';
+import { DEFAULT_PYTHON_VERSION } from '../../lib/constants';
 
 export default function PythonEnvCard({
   onStateChange,
@@ -87,7 +88,7 @@ export default function PythonEnvCard({
     setLogs([]);
     setShowLogs(true);
     try {
-      await invoke('install_openviking', { pythonVersion: '3.12' });
+      await invoke('install_openviking', { pythonVersion: DEFAULT_PYTHON_VERSION });
     } catch (err) {
       setError(String(err));
       setLoading(false);
@@ -118,7 +119,7 @@ export default function PythonEnvCard({
       setPythonVersions(pyVersions);
       const defaultPyVersion = envState.pythonVersion
         ? envState.pythonVersion.split('.').slice(0, 2).join('.')
-        : '3.12';
+        : DEFAULT_PYTHON_VERSION;
       setSelectedPythonVersion(defaultPyVersion);
       setOvVersions(ovVersionsList);
       setSelectedOvVersion(envState.currentVersion || ovVersionsList[0] || '');
