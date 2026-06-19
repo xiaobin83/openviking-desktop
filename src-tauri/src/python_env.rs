@@ -117,13 +117,32 @@ pub fn venv_create(
     )
 }
 
-pub fn pip_install_openviking(
+pub fn pip_install_openviking_with_wheel(
     app: &AppHandle,
     uv_path: &str,
     venv_python: &str,
     upgrade: bool,
     version: Option<&str>,
+    prebuilt_wheel: Option<&str>,
 ) -> Result<(), String> {
+    // 如果有预编译的 llama-cpp-python wheel，先安装它
+    // 这样 openviking[local-embed] 安装时就无需从源码编译
+    if let Some(wheel_path) = prebuilt_wheel {
+        let wheel = std::path::Path::new(wheel_path);
+        if wheel.exists() {
+            log::info!("pip_install_openviking: pre-installing wheel: {}", wheel_path);
+            run_uv(
+                app,
+                uv_path,
+                &["pip", "install", "--python", venv_python, "--no-deps", wheel_path],
+                "installing_wheel",
+                "安装 llama-cpp-python (预编译)...",
+            )?;
+        } else {
+            log::warn!("pip_install_openviking: wheel not found at {}, skipping", wheel_path);
+        }
+    }
+
     let package = match version {
         Some(v) => format!("openviking[bot,local-embed]=={}", v),
         None => "openviking[bot,local-embed]".to_string(),
@@ -161,27 +180,112 @@ pub fn pip_install_openviking(
 }
 
 pub fn pip_show_openviking(uv_path: &str, venv_python: &str) -> Result<Option<String>, String> {
-    let output = run_uv_output(
+    log::info!(
+        "pip_show_openviking: uv={}, python={}",
+        uv_path,
+        venv_python
+    );
+
+    // 方法 1: uv pip list --format json（结构化输出，无解析歧义）
+    match run_uv_output(
+        uv_path,
+        &["pip", "list", "--python", venv_python, "--format", "json"],
+    ) {
+        Ok(json) => {
+            let json = json.trim_start_matches('\u{FEFF}').trim();
+            if let Ok(packages) =
+                serde_json::from_str::<Vec<serde_json::Value>>(json)
+            {
+                for pkg in &packages {
+                    if pkg
+                        .get("name")
+                        .and_then(|v| v.as_str())
+                        == Some("openviking")
+                    {
+                        if let Some(ver) =
+                            pkg.get("version").and_then(|v| v.as_str())
+                        {
+                            let v = ver.to_string();
+                            log::info!(
+                                "pip_show_openviking: found via pip list: {}",
+                                v
+                            );
+                            return Ok(Some(v));
+                        }
+                    }
+                }
+                log::warn!("pip_show_openviking: openviking not in pip list JSON output");
+            } else {
+                log::warn!("pip_show_openviking: failed to parse pip list JSON");
+            }
+        }
+        Err(e) => {
+            log::warn!("pip_show_openviking: uv pip list failed: {}", e);
+        }
+    }
+
+    // 方法 2: Python 直接查询 importlib.metadata
+    match get_version_via_python(venv_python) {
+        Ok(Some(v)) => {
+            log::info!("pip_show_openviking: found via Python: {}", v);
+            return Ok(Some(v));
+        }
+        Ok(None) => {
+            log::warn!("pip_show_openviking: Python method returned empty");
+        }
+        Err(e) => {
+            log::warn!("pip_show_openviking: Python fallback error: {}", e);
+        }
+    }
+
+    // 方法 3: uv pip show（大小写不敏感解析）
+    match run_uv_output(
         uv_path,
         &["pip", "show", "--python", venv_python, "openviking"],
-    );
-    match output {
+    ) {
         Ok(text) => {
             for line in text.lines() {
-                if let Some(ver) = line.strip_prefix("Version: ") {
-                    return Ok(Some(ver.trim().to_string()));
+                let trim = line.trim();
+                if trim.len() > 8 && trim[..8].to_lowercase() == "version:" {
+                    let ver = trim[8..].trim().to_string();
+                    if !ver.is_empty() {
+                        log::info!("pip_show_openviking: found via pip show: {}", ver);
+                        return Ok(Some(ver));
+                    }
                 }
             }
+            log::warn!("pip_show_openviking: pip show succeeded but version line not found");
             Ok(None)
         }
         Err(e) => {
-            if e.contains("not found") || e.contains("not installed") {
+            let lower = e.to_lowercase();
+            if lower.contains("not found")
+                || lower.contains("not installed")
+                || lower.contains("no package")
+            {
+                log::info!("pip_show_openviking: package not installed");
                 Ok(None)
             } else {
+                log::error!("pip_show_openviking: all methods failed: {}", e);
                 Err(e)
             }
         }
     }
+}
+
+fn get_version_via_python(venv_python: &str) -> Result<Option<String>, String> {
+    let output = std::process::Command::new(venv_python)
+        .args(["-c", "import importlib.metadata; print(importlib.metadata.version('openviking'))"])
+        .output()
+        .map_err(|e| format!("执行 Python 失败: {}", e))?;
+    if output.status.success() {
+        let text = String::from_utf8_lossy(&output.stdout);
+        let ver = text.trim().to_string();
+        if !ver.is_empty() {
+            return Ok(Some(ver));
+        }
+    }
+    Ok(None)
 }
 
 pub async fn pip_index_all_versions() -> Result<Vec<String>, String> {
@@ -243,7 +347,15 @@ pub fn python_list_all(uv_path: &str) -> Result<Vec<String>, String> {
             None
         })
         .collect();
-    versions.sort();
+    // 按语义版本号降序排列（最新版本在前）
+    versions.sort_by(|a, b| {
+        let va = SemverVersion::parse(&format!("{}.0", a));
+        let vb = SemverVersion::parse(&format!("{}.0", b));
+        match (va, vb) {
+            (Ok(va), Ok(vb)) => vb.cmp(&va),
+            _ => b.cmp(a), // 解析失败时回退到字典序降序
+        }
+    });
     versions.dedup();
     Ok(versions)
 }

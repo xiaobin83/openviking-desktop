@@ -37,7 +37,8 @@
     ],
     "resources": [
       "Resources/uv/**/*",
-      "Resources/models/**/*"
+      "Resources/models/**/*",
+      "Resources/wheels/**/*"
     ],
     "macOS": {
       "minimumSystemVersion": "14.0"

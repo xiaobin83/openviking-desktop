@@ -12,6 +12,9 @@ src-tauri/Resources/uv/
 # GGUF models (downloaded by scripts/download-gguf.sh)
 src-tauri/Resources/models/*.gguf
 
+# llama-cpp-python wheels (downloaded by scripts/download-llama-cpp.sh)
+src-tauri/Resources/wheels/*.whl
+
 # cargo-xwin local cache
 src-tauri/.cargo-home/
 

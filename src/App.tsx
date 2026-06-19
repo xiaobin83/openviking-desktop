@@ -14,6 +14,13 @@ function App() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [ready, setReady] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [appVersion, setAppVersion] = useState('');
+
+  useEffect(() => {
+    invoke<string>('get_app_version')
+      .then(setAppVersion)
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     invoke<boolean>('is_onboarded')
@@ -88,9 +95,16 @@ function App() {
               </svg>
             </div>
             <div>
-              <h1 className="text-base font-bold tracking-tight text-text-primary">
-                {t('app.title')}
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-base font-bold tracking-tight text-text-primary">
+                  {t('app.title')}
+                </h1>
+                {appVersion && (
+                  <span className="rounded-md bg-aurora-500/10 px-1.5 py-0.5 font-mono text-[10px] text-aurora-400 border border-aurora-500/20">
+                    v{appVersion}
+                  </span>
+                )}
+              </div>
               <p className="text-[11px] font-medium tracking-wider text-text-muted">
                 {t('app.subtitle')}
               </p>

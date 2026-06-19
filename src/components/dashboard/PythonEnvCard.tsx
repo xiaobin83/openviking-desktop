@@ -87,7 +87,7 @@ export default function PythonEnvCard({
     setLogs([]);
     setShowLogs(true);
     try {
-      await invoke('install_openviking', { pythonVersion: '3.13' });
+      await invoke('install_openviking', { pythonVersion: '3.12' });
     } catch (err) {
       setError(String(err));
       setLoading(false);
@@ -118,7 +118,7 @@ export default function PythonEnvCard({
       setPythonVersions(pyVersions);
       const defaultPyVersion = envState.pythonVersion
         ? envState.pythonVersion.split('.').slice(0, 2).join('.')
-        : '3.13';
+        : '3.12';
       setSelectedPythonVersion(defaultPyVersion);
       setOvVersions(ovVersionsList);
       setSelectedOvVersion(envState.currentVersion || ovVersionsList[0] || '');
@@ -162,11 +162,11 @@ export default function PythonEnvCard({
                 <p className="font-mono text-xs text-text-muted">
                   {envState.pythonVersion
                     ? `Python ${envState.pythonVersion}`
-                    : 'Python (读取中...)'}
+                    : `Python ${t('python.reading')}`}
                   {' | '}
                   {envState.currentVersion
                     ? `OpenViking v${envState.currentVersion}`
-                    : 'OpenViking (读取中...)'}
+                    : `OpenViking ${t('python.reading')}`}
                   {!isUpgradable && envState.currentVersion && envState.latestVersion && envState.currentVersion === envState.latestVersion && (
                     <span className="ml-1 rounded bg-green-500/10 px-1.5 py-0.5 text-[10px] text-green-400">
                       {t('python.latest')}

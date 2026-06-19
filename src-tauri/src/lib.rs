@@ -311,9 +311,16 @@ async fn check_openviking_state(
     if installed {
         let uv_path = &state.uv_path;
         let venv_python = state.venv_path.lock().unwrap().clone();
+        let cached_ver = state.openviking_version.lock().unwrap().clone();
+        log::info!(
+            "check_openviking_state: installed=true, venv={}, cached_version={}",
+            venv_python,
+            if cached_ver.is_empty() { "(none)" } else { &cached_ver }
+        );
 
         match python_env::pip_show_openviking(uv_path, &venv_python) {
             Ok(Some(v)) => {
+                log::info!("check_openviking_state: version={}", v);
                 current_version = Some(v.clone());
                 *state.openviking_version.lock().unwrap() = v.clone();
                 // 持久化版本号，避免下次启动读取失败
@@ -325,6 +332,7 @@ async fn check_openviking_state(
                 // fallback: 使用上次缓存的版本号
                 let cached = state.openviking_version.lock().unwrap().clone();
                 if !cached.is_empty() {
+                    log::info!("check_openviking_state: using cached version={}", cached);
                     current_version = Some(cached);
                 }
             }
@@ -332,6 +340,7 @@ async fn check_openviking_state(
                 log::warn!("check_openviking_state: pip_show error: {}", e);
                 let cached = state.openviking_version.lock().unwrap().clone();
                 if !cached.is_empty() {
+                    log::info!("check_openviking_state: using cached version={}", cached);
                     current_version = Some(cached);
                 }
             }
@@ -381,7 +390,7 @@ async fn install_openviking(
     python_version: Option<String>,
     openviking_version: Option<String>,
 ) -> Result<String, String> {
-    let version = python_version.unwrap_or_else(|| "3.13".to_string());
+    let version = python_version.unwrap_or_else(|| "3.12".to_string());
     let uv_path = state.uv_path.clone();
 
     static INSTALLING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -427,12 +436,14 @@ async fn install_openviking(
                 "python3"
             });
         let venv_python_str = venv_python.to_string_lossy().to_string();
-        python_env::pip_install_openviking(
+        let wheel = resolve_llama_cpp_wheel_inner(&app);
+        python_env::pip_install_openviking_with_wheel(
             &app,
             &uv_path,
             &venv_python_str,
             false,
             openviking_version.as_deref(),
+            wheel.as_deref(),
         )?;
 
         Ok(venv_python_str)
@@ -487,7 +498,10 @@ async fn upgrade_openviking(
     let uv_path = state.uv_path.clone();
     let venv_python = state.venv_path.lock().unwrap().clone();
 
-    let result = python_env::pip_install_openviking(&app, &uv_path, &venv_python, true, None);
+    let result = {
+        let wheel = resolve_llama_cpp_wheel_inner(&app);
+        python_env::pip_install_openviking_with_wheel(&app, &uv_path, &venv_python, true, None, wheel.as_deref())
+    };
 
     UPGRADING.store(false, std::sync::atomic::Ordering::Release);
 
@@ -563,7 +577,8 @@ async fn upgrade_python(
                 "python3"
             });
         let venv_python_str = venv_python.to_string_lossy().to_string();
-        python_env::pip_install_openviking(&app, &uv_path, &venv_python_str, false, None)?;
+        let wheel = resolve_llama_cpp_wheel_inner(&app);
+        python_env::pip_install_openviking_with_wheel(&app, &uv_path, &venv_python_str, false, None, wheel.as_deref())?;
 
         Ok(venv_python_str)
     })
@@ -691,6 +706,28 @@ fn resolve_bundled_model_path_inner(app: &tauri::AppHandle) -> String {
     path.to_string_lossy().to_string()
 }
 
+fn resolve_llama_cpp_wheel_inner(app: &tauri::AppHandle) -> Option<String> {
+    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let dev_dir = manifest_dir.join("Resources/wheels");
+    let resource_dir = app.path().resource_dir().ok()?;
+    let prod_dir = resource_dir.join("Resources/wheels");
+
+    // 在目录中查找 llama_cpp_python-*.whl 文件
+    let search_dir = if dev_dir.exists() { &dev_dir } else { &prod_dir };
+    if let Ok(entries) = std::fs::read_dir(search_dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy();
+            if name_str.starts_with("llama_cpp_python-") && name_str.ends_with(".whl") {
+                log::info!("Found bundled wheel: {}", name_str);
+                return Some(entry.path().to_string_lossy().to_string());
+            }
+        }
+    }
+    log::info!("No bundled llama-cpp-python wheel found in {:?}", search_dir);
+    None
+}
+
 #[tauri::command]
 fn resolve_bundled_model_path(app: tauri::AppHandle) -> Result<String, String> {
     let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -791,6 +828,11 @@ async fn is_onboarded() -> Result<bool, String> {
         .to_string_lossy()
         .to_string();
     Ok(std::path::Path::new(&old_flag_path).exists())
+}
+
+#[tauri::command]
+fn get_app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
 }
 
 #[tauri::command]
@@ -963,6 +1005,12 @@ pub fn run() {
                         let _ = process::spawn_server_with_app_handle(&auto_start_handle).await;
                     });
                 }
+
+                // 启动时自动显示仪表盘窗口
+                if let Some(window) = app.get_webview_window("dashboard") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
             } else {
                 // 首次运行：不生成配置，不自动启动，显示向导窗口
                 log::info!("First run detected — showing onboarding wizard");
@@ -1004,6 +1052,7 @@ pub fn run() {
             read_rebuild_lock,
             write_rebuild_lock,
             delete_rebuild_lock,
+            get_app_version,
             is_onboarded,
             mark_onboarded,
         ])

@@ -31,7 +31,7 @@ export default function InstallStep({ isInstalled, onInstalled, onInstallComplet
   // Version selection state (only used when isInstalled)
   const [pythonVersions, setPythonVersions] = useState<string[]>([]);
   const [ovVersions, setOvVersions] = useState<string[]>([]);
-  const [selectedPythonVersion, setSelectedPythonVersion] = useState('3.13');
+  const [selectedPythonVersion, setSelectedPythonVersion] = useState('3.12');
   const [selectedOvVersion, setSelectedOvVersion] = useState('');
   const [currentPythonVersion, setCurrentPythonVersion] = useState('');
   const [currentOvVersion, setCurrentOvVersion] = useState('');
@@ -52,7 +52,7 @@ export default function InstallStep({ isInstalled, onInstalled, onInstallComplet
         setOvVersions(ovVersionsList);
         const defaultPy = state.pythonVersion
           ? state.pythonVersion.split('.').slice(0, 2).join('.')
-          : pyVersions.find((v) => v.startsWith('3.13')) || pyVersions[0] || '3.13';
+          : pyVersions.find((v) => v.startsWith('3.12')) || pyVersions[0] || '3.12';
         setSelectedPythonVersion(defaultPy);
         setSelectedOvVersion(state.currentVersion || ovVersionsList[0] || '');
       })
