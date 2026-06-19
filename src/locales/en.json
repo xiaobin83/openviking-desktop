@@ -194,6 +194,7 @@
   "python.local_embed": "Local Embedding Model",
   "python.local_embed_desc": "Install llama-cpp-python for local GGUF embedding model support",
   "python.local_embed_win_warning": "Windows requires Visual Studio Build Tools (C++ toolchain) or MinGW-w64 + CMake to build llama-cpp-python. Install them before enabling this option.",
+  "python.version_fetch_error": "Unable to fetch OpenViking version list (network unavailable). Showing currently installed version.",
 
   "wizard.title": "Setup Wizard",
   "wizard.step_install": "Install OpenViking",

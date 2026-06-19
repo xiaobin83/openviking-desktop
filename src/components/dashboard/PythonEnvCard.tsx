@@ -22,6 +22,7 @@ export default function PythonEnvCard({
     hasLocalEmbed: false,
   });
   const [localEmbed, setLocalEmbed] = useState(false);
+  const [versionFetchError, setVersionFetchError] = useState('');
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
   const [logs, setLogs] = useState<string[]>([]);
@@ -113,18 +114,28 @@ export default function PythonEnvCard({
   const handleOpenVersionDialog = async () => {
     if (fetchingVersions) return;
     setFetchingVersions(true);
+    setVersionFetchError('');
     try {
-      const [pyVersions, ovVersionsList] = await Promise.all([
-        invoke<string[]>('get_python_versions'),
-        invoke<string[]>('get_openviking_versions'),
-      ]);
+      const pyVersions = await invoke<string[]>('get_python_versions');
       setPythonVersions(pyVersions);
       const defaultPyVersion = envState.pythonVersion
         ? envState.pythonVersion.split('.').slice(0, 2).join('.')
         : DEFAULT_PYTHON_VERSION;
       setSelectedPythonVersion(defaultPyVersion);
-      setOvVersions(ovVersionsList);
-      setSelectedOvVersion(envState.currentVersion || ovVersionsList[0] || '');
+
+      // OpenViking 版本列表（网络查询，可能失败）
+      try {
+        const ovList = await invoke<string[]>('get_openviking_versions');
+        setOvVersions(ovList);
+        setSelectedOvVersion(envState.currentVersion || ovList[0] || '');
+      } catch {
+        setVersionFetchError(t('python.version_fetch_error'));
+        if (envState.currentVersion) {
+          setOvVersions([envState.currentVersion]);
+          setSelectedOvVersion(envState.currentVersion);
+        }
+      }
+
       setLocalEmbed(envState.hasLocalEmbed);
       setShowVersionDialog(true);
     } catch (err) {
@@ -289,6 +300,10 @@ export default function PythonEnvCard({
                 <option key={v} value={v}>v{v}</option>
               ))}
             </select>
+
+            {versionFetchError && (
+              <p className="mt-1.5 text-xs text-amber-400">{versionFetchError}</p>
+            )}
 
             <label className="mt-3 flex items-center gap-2 cursor-pointer">
               <input

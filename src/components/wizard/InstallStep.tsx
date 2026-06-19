@@ -38,28 +38,44 @@ export default function InstallStep({ isInstalled, onInstalled, onInstallComplet
   const [currentOvVersion, setCurrentOvVersion] = useState('');
   const [fetchingVersions, setFetchingVersions] = useState(false);
   const [localEmbed, setLocalEmbed] = useState(false);
+  const [versionFetchError, setVersionFetchError] = useState('');
 
   useEffect(() => {
     if (!isInstalled) return;
     setFetchingVersions(true);
+    setVersionFetchError('');
+
+    // 基础状态和 Python 版本（本地查询，不会因网络失败）
     Promise.all([
       invoke<PythonEnvState>('check_openviking_state'),
       invoke<string[]>('get_python_versions'),
-      invoke<string[]>('get_openviking_versions'),
     ])
-      .then(([state, pyVersions, ovVersionsList]) => {
+      .then(([state, pyVersions]) => {
         setCurrentPythonVersion(state.pythonVersion || '');
         setCurrentOvVersion(state.currentVersion || '');
         setPythonVersions(pyVersions);
-        setOvVersions(ovVersionsList);
         const defaultPy = state.pythonVersion
           ? state.pythonVersion.split('.').slice(0, 2).join('.')
           : pyVersions.find((v) => v.startsWith(DEFAULT_PYTHON_VERSION)) || pyVersions[0] || DEFAULT_PYTHON_VERSION;
         setSelectedPythonVersion(defaultPy);
-        setSelectedOvVersion(state.currentVersion || ovVersionsList[0] || '');
+
+        // OpenViking 版本号列表（PyPI 网络查询，可能失败）
+        invoke<string[]>('get_openviking_versions')
+          .then((ovList) => {
+            setOvVersions(ovList);
+            setSelectedOvVersion(state.currentVersion || ovList[0] || '');
+          })
+          .catch(() => {
+            setVersionFetchError(t('python.version_fetch_error'));
+            // 回退：至少显示当前已安装的版本
+            if (state.currentVersion) {
+              setOvVersions([state.currentVersion]);
+              setSelectedOvVersion(state.currentVersion);
+            }
+          })
+          .finally(() => setFetchingVersions(false));
       })
-      .catch(() => {})
-      .finally(() => setFetchingVersions(false));
+      .catch(() => setFetchingVersions(false));
   }, [isInstalled]);
 
   useEffect(() => {
@@ -188,6 +204,9 @@ export default function InstallStep({ isInstalled, onInstalled, onInstallComplet
             </div>
           </div>
         </div>
+        {versionFetchError && (
+          <p className="mt-2 text-xs text-amber-400">{versionFetchError}</p>
+        )}
         <div className="mt-3">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
