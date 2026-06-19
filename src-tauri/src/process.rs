@@ -77,6 +77,8 @@ pub async fn spawn_server(state: &ServerState, app: &AppHandle) -> Result<String
         .arg("--config")
         .arg(get_ov_conf_path(state))
         .arg("--with-bot")
+        .env("PYTHONIOENCODING", "utf-8")
+        .env("PYTHONUTF8", "1")
         .stdout(Stdio::from(log_file.try_clone().unwrap()))
         .stderr(Stdio::from(log_file));
 
@@ -389,6 +391,8 @@ fn start_runtime_health_monitor(
                 .arg("--config")
                 .arg(&ov_conf_path)
                 .arg("--with-bot")
+                .env("PYTHONIOENCODING", "utf-8")
+                .env("PYTHONUTF8", "1")
                 .stdout(Stdio::from(log_file.try_clone().unwrap()))
                 .stderr(Stdio::from(log_file));
 
