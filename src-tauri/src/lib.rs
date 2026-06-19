@@ -310,14 +310,20 @@ fn open_console(state: tauri::State<'_, ServerState>) -> Result<(), String> {
         let activate_bat = std::path::Path::new(&venv_python)
             .parent()
             .map(|p| p.join("activate.bat"));
-        let cmd_str = if let Some(ref ap) = activate_bat {
-            if ap.exists() {
-                format!("cd /d \"{}\" && \"{}\"", ws_dir, ap.to_string_lossy())
-            } else {
-                format!("cd /d \"{}\"", ws_dir)
-            }
+        let activate_str = activate_bat
+            .as_ref()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let cmd_str = if !activate_str.is_empty() && std::path::Path::new(&activate_str).exists() {
+            format!(
+                "echo [workspace] {} && echo [activate] {} && cd /d \"{}\" && \"{}\"",
+                ws_dir, activate_str, ws_dir, activate_str
+            )
         } else {
-            format!("cd /d \"{}\"", ws_dir)
+            format!(
+                "echo [workspace] {} && echo [activate] (not found) && cd /d \"{}\"",
+                ws_dir, ws_dir
+            )
         };
         // GUI 子系统程序需要 CREATE_NEW_CONSOLE 才能显示控制台窗口
         let mut cmd = std::process::Command::new("cmd");
