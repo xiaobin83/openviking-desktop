@@ -310,43 +310,24 @@ fn open_console(state: tauri::State<'_, ServerState>) -> Result<(), String> {
         let activate_bat = std::path::Path::new(&venv_python)
             .parent()
             .map(|p| p.join("activate.bat"));
-        let activate_str = activate_bat
-            .as_ref()
-            .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_default();
-
-        // 写临时 bat 文件，避免嵌套引号问题
-        let bat_content = if !activate_str.is_empty() && std::path::Path::new(&activate_str).exists() {
-            format!(
-                "@echo off\r\n\
-                 echo [workspace] {}\r\n\
-                 echo [activate] {}\r\n\
-                 cd /d \"{}\"\r\n\
-                 call \"{}\"\r\n\
-                 cmd /k\r\n",
-                ws_dir, activate_str, ws_dir, activate_str
-            )
+        let cmd_str = if let Some(ref ap) = activate_bat {
+            if ap.exists() {
+                format!(
+                    "echo [workspace] {} && echo [activate] {} && cd /d \"{}\" && call \"{}\" && cmd /k",
+                    ws_dir,
+                    ap.to_string_lossy(),
+                    ws_dir,
+                    ap.to_string_lossy()
+                )
+            } else {
+                format!("echo [workspace] {} && cd /d \"{}\" && cmd /k", ws_dir, ws_dir)
+            }
         } else {
-            format!(
-                "@echo off\r\n\
-                 echo [workspace] {}\r\n\
-                 echo [activate] (not found)\r\n\
-                 cd /d \"{}\"\r\n\
-                 cmd /k\r\n",
-                ws_dir, ws_dir
-            )
+            format!("echo [workspace] {} && cd /d \"{}\" && cmd /k", ws_dir, ws_dir)
         };
 
-        let temp_dir = std::env::temp_dir();
-        let bat_path = temp_dir.join("openviking_console.bat");
-        std::fs::write(&bat_path, &bat_content)
-            .map_err(|e| format!("写入临时脚本失败: {}", e))?;
-
-        use std::os::windows::process::CommandExt;
-        const CREATE_NEW_CONSOLE: u32 = 0x00000010;
         std::process::Command::new("cmd")
-            .args(["/c", &bat_path.to_string_lossy()])
-            .creation_flags(CREATE_NEW_CONSOLE)
+            .args(["/c", "start", "", "cmd", "/k", &cmd_str])
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
