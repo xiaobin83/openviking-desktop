@@ -319,10 +319,15 @@ fn open_console(state: tauri::State<'_, ServerState>) -> Result<(), String> {
         } else {
             format!("cd /d \"{}\"", ws_dir)
         };
-        // windows_subsystem = "windows" 的 GUI 程序 spawn cmd 会自动创建控制台窗口
-        std::process::Command::new("cmd")
-            .args(["/k", &cmd_str])
-            .spawn()
+        // GUI 子系统程序需要 CREATE_NEW_CONSOLE 才能显示控制台窗口
+        let mut cmd = std::process::Command::new("cmd");
+        cmd.args(["/k", &cmd_str]);
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NEW_CONSOLE: u32 = 0x00000010;
+            cmd.creation_flags(CREATE_NEW_CONSOLE);
+        }
+        cmd.spawn()
             .map_err(|e| format!("打开终端失败: {}", e))?;
     }
     #[cfg(target_os = "linux")]
