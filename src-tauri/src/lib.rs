@@ -229,20 +229,37 @@ async fn read_server_log(state: tauri::State<'_, ServerState>) -> Result<String,
 #[tauri::command]
 async fn open_log_file(state: tauri::State<'_, ServerState>) -> Result<String, String> {
     let path = &state.server_log_path;
-    std::process::Command::new("open")
-        .arg(path)
-        .spawn()
-        .map_err(|e| format!("打开日志文件失败: {}", e))?;
-    Ok("ok".to_string())
+    open_file_with_default_app(path)
 }
 
 #[tauri::command]
 async fn open_app_log_file(state: tauri::State<'_, ServerState>) -> Result<String, String> {
     let path = &state.desktop_log_path;
-    std::process::Command::new("open")
-        .arg(path)
-        .spawn()
-        .map_err(|e| format!("打开应用日志失败: {}", e))?;
+    open_file_with_default_app(path)
+}
+
+fn open_file_with_default_app(path: &str) -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/c", "start", "", path])
+            .spawn()
+            .map_err(|e| format!("打开文件失败: {}", e))?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(path)
+            .spawn()
+            .map_err(|e| format!("打开文件失败: {}", e))?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(path)
+            .spawn()
+            .map_err(|e| format!("打开文件失败: {}", e))?;
+    }
     Ok("ok".to_string())
 }
 
@@ -254,13 +271,13 @@ fn open_console(state: tauri::State<'_, ServerState>) -> Result<(), String> {
         if ws.is_empty() { "~".to_string() } else { ws }
     };
 
-    let activate = std::path::Path::new(&venv_python)
-        .parent()
-        .map(|p| p.join("activate"))
-        .filter(|p| p.exists());
-
     #[cfg(target_os = "macos")]
     {
+        let activate = std::path::Path::new(&venv_python)
+            .parent()
+            .map(|p| p.join("activate"))
+            .filter(|p| p.exists());
+
         let cmd = if let Some(activate_path) = activate {
             format!(
                 "tell application \"Terminal\" to do script \"cd \\\"{}\\\" && source \\\"{}\\\"\"",
@@ -279,7 +296,38 @@ fn open_console(state: tauri::State<'_, ServerState>) -> Result<(), String> {
             .spawn()
             .map_err(|e| format!("打开终端失败: {}", e))?;
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        let activate_bat = std::path::Path::new(&venv_python)
+            .parent()
+            .map(|p| p.join("activate.bat"));
+        if let Some(activate_path) = activate_bat {
+            if activate_path.exists() {
+                std::process::Command::new("cmd")
+                    .args([
+                        "/c", "start", "cmd",
+                        "/k",
+                        &format!(
+                            "cd /d \"{}\" && \"{}\"",
+                            workspace,
+                            activate_path.to_string_lossy()
+                        ),
+                    ])
+                    .spawn()
+                    .map_err(|e| format!("打开终端失败: {}", e))?;
+            } else {
+                std::process::Command::new("cmd")
+                    .args([
+                        "/c", "start", "cmd",
+                        "/k",
+                        &format!("cd /d \"{}\"", workspace),
+                    ])
+                    .spawn()
+                    .map_err(|e| format!("打开终端失败: {}", e))?;
+            }
+        }
+    }
+    #[cfg(target_os = "linux")]
     {
         let _ = activate;
     }
