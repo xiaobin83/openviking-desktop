@@ -194,6 +194,7 @@
   "python.local_embed": "本地 Embedding 模型",
   "python.local_embed_desc": "安装 llama-cpp-python 以支持本地 GGUF 嵌入模型",
   "python.local_embed_win_warning": "Windows 需要 Visual Studio Build Tools (C++ 编译工具链) 或 MinGW-w64 + CMake 才能编译 llama-cpp-python。如未安装，请先安装后再启用此选项。",
+  "python.version_fetch_error": "无法获取 OpenViking 在线版本列表（网络不可用），已显示当前已安装版本。",
 
   "wizard.title": "设置向导",
   "wizard.step_install": "安装 OpenViking",
