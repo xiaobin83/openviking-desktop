@@ -59,6 +59,7 @@ export default function InstallStep({ isInstalled, onInstalled, onInstallComplet
         setCurrentPythonVersion(state.pythonVersion || '');
         setCurrentOvVersion(state.currentVersion || '');
         setPythonVersions(pyVersions);
+        setLocalEmbed(state.hasLocalEmbed);
         const defaultPy = state.pythonVersion
           ? state.pythonVersion.split('.').slice(0, 2).join('.')
           : pyVersions.find((v) => v.startsWith(DEFAULT_PYTHON_VERSION)) || pyVersions[0] || DEFAULT_PYTHON_VERSION;
