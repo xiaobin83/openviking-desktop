@@ -358,11 +358,6 @@ fn open_console(state: tauri::State<'_, ServerState>) -> Result<(), String> {
             .stderr(std::process::Stdio::null())
             .spawn()
             .map_err(|e| format!("打开终端失败: {}", e))?;
-            .stdin(std::process::Stdio::null())
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .spawn()
-            .map_err(|e| format!("打开终端失败: {}", e))?;
     }
     #[cfg(target_os = "linux")]
     {
