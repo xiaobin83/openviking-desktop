@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type { PythonEnvState, PythonTaskProgress } from '../../lib/types';
 import { DEFAULT_PYTHON_VERSION } from '../../lib/constants';
+import { ChevronDownIcon, ChevronRightIcon } from '../Icons';
 
 export default function PythonEnvCard({
   onStateChange,
@@ -261,9 +262,9 @@ export default function PythonEnvCard({
               className="mb-1 text-[11px] text-text-muted hover:text-text-primary transition-colors"
             >
               {showLogs ? (
-                <svg className="w-3 h-3 inline-block mr-0.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
+                <ChevronDownIcon className="w-3 h-3 inline-block mr-0.5" />
               ) : (
-                <svg className="w-3 h-3 inline-block mr-0.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd"/></svg>
+                <ChevronRightIcon className="w-3 h-3 inline-block mr-0.5" />
               )} {t('python.log_output')} ({logs.length} lines)
             </button>
             {showLogs && (
