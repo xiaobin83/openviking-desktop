@@ -314,26 +314,43 @@ fn open_console(state: tauri::State<'_, ServerState>) -> Result<(), String> {
             .as_ref()
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_default();
-        let cmd_str = if !activate_str.is_empty() && std::path::Path::new(&activate_str).exists() {
+
+        // 写临时 bat 文件，避免嵌套引号问题
+        let bat_content = if !activate_str.is_empty() && std::path::Path::new(&activate_str).exists() {
             format!(
-                "echo [workspace] {} && echo [activate] {} && cd /d \"{}\" && \"{}\"",
+                "@echo off\r\n\
+                 echo [workspace] {}\r\n\
+                 echo [activate] {}\r\n\
+                 cd /d \"{}\"\r\n\
+                 call \"{}\"\r\n\
+                 cmd /k\r\n",
                 ws_dir, activate_str, ws_dir, activate_str
             )
         } else {
             format!(
-                "echo [workspace] {} && echo [activate] (not found) && cd /d \"{}\"",
+                "@echo off\r\n\
+                 echo [workspace] {}\r\n\
+                 echo [activate] (not found)\r\n\
+                 cd /d \"{}\"\r\n\
+                 cmd /k\r\n",
                 ws_dir, ws_dir
             )
         };
-        // GUI 子系统程序需要 CREATE_NEW_CONSOLE 才能显示控制台窗口
-        let mut cmd = std::process::Command::new("cmd");
-        cmd.args(["/k", &cmd_str]);
-        {
-            use std::os::windows::process::CommandExt;
-            const CREATE_NEW_CONSOLE: u32 = 0x00000010;
-            cmd.creation_flags(CREATE_NEW_CONSOLE);
-        }
-        cmd.spawn()
+
+        let temp_dir = std::env::temp_dir();
+        let bat_path = temp_dir.join("openviking_console.bat");
+        std::fs::write(&bat_path, &bat_content)
+            .map_err(|e| format!("写入临时脚本失败: {}", e))?;
+
+        use std::os::windows::process::CommandExt;
+        const CREATE_NEW_CONSOLE: u32 = 0x00000010;
+        std::process::Command::new("cmd")
+            .args(["/c", &bat_path.to_string_lossy()])
+            .creation_flags(CREATE_NEW_CONSOLE)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
             .map_err(|e| format!("打开终端失败: {}", e))?;
     }
     #[cfg(target_os = "linux")]
