@@ -298,34 +298,32 @@ fn open_console(state: tauri::State<'_, ServerState>) -> Result<(), String> {
     }
     #[cfg(target_os = "windows")]
     {
+        // 在 Windows 上，workspace 为空时回退到用户主目录
+        let ws_dir = if workspace == "~" {
+            dirs::home_dir()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|| "C:\\".to_string())
+        } else {
+            workspace
+        };
+
         let activate_bat = std::path::Path::new(&venv_python)
             .parent()
             .map(|p| p.join("activate.bat"));
-        if let Some(activate_path) = activate_bat {
-            if activate_path.exists() {
-                std::process::Command::new("cmd")
-                    .args([
-                        "/c", "start", "cmd",
-                        "/k",
-                        &format!(
-                            "cd /d \"{}\" && \"{}\"",
-                            workspace,
-                            activate_path.to_string_lossy()
-                        ),
-                    ])
-                    .spawn()
-                    .map_err(|e| format!("打开终端失败: {}", e))?;
+        let cmd_str = if let Some(ref ap) = activate_bat {
+            if ap.exists() {
+                format!("cd /d \"{}\" && \"{}\"", ws_dir, ap.to_string_lossy())
             } else {
-                std::process::Command::new("cmd")
-                    .args([
-                        "/c", "start", "cmd",
-                        "/k",
-                        &format!("cd /d \"{}\"", workspace),
-                    ])
-                    .spawn()
-                    .map_err(|e| format!("打开终端失败: {}", e))?;
+                format!("cd /d \"{}\"", ws_dir)
             }
-        }
+        } else {
+            format!("cd /d \"{}\"", ws_dir)
+        };
+        // windows_subsystem = "windows" 的 GUI 程序 spawn cmd 会自动创建控制台窗口
+        std::process::Command::new("cmd")
+            .args(["/k", &cmd_str])
+            .spawn()
+            .map_err(|e| format!("打开终端失败: {}", e))?;
     }
     #[cfg(target_os = "linux")]
     {
