@@ -24,6 +24,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   const [checkingInstall, setCheckingInstall] = useState(true);
   const [error, setError] = useState('');
   const [isInstalling, setIsInstalling] = useState(false);
+  const [hasLocalEmbed, setHasLocalEmbed] = useState(false);
 
   // Initialize form data from default config
   const [formData, setFormData] = useState<Partial<OvConfig>>(() => {
@@ -38,6 +39,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     invoke<PythonEnvState>('check_openviking_state')
       .then((state) => {
         setIsInstalled(state.installed);
+        setHasLocalEmbed(state.hasLocalEmbed);
       })
       .catch(() => {
         setIsInstalled(false);
@@ -127,6 +129,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
           <EmbeddingStep
             formData={formData}
             onChange={(data) => setFormData({ ...formData, ...data })}
+            hasLocalEmbed={hasLocalEmbed}
           />
         );
       case 3:
