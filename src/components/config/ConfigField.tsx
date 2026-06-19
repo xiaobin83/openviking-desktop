@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import type { ConfigField } from '../../lib/config-fields';
 import type { OvConfig } from '../../lib/types';
 
@@ -60,12 +61,22 @@ export default function ConfigFieldRenderer({ field, value, onChange }: ConfigFi
 
       case 'password':
         return (
-          <input
-            type="password"
-            value={(value as string) ?? ''}
-            onChange={handleString}
-            className={inputClass}
-          />
+          <div className="flex gap-2">
+            <input
+              type="password"
+              value={(value as string) ?? ''}
+              onChange={handleString}
+              className={`${inputClass} flex-1`}
+            />
+            <button
+              type="button"
+              onClick={() => writeText((value as string) ?? '')}
+              className="px-3 py-2 rounded-md border border-border-subtle bg-surface-elevated text-xs text-text-muted hover:text-text-primary hover:border-border-active transition-colors"
+              title="复制"
+            >
+              复制
+            </button>
+          </div>
         );
 
       case 'number': {
