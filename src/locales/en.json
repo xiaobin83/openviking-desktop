@@ -15,6 +15,7 @@
   "config.reset_to_default": "Reset to default config",
   "config.save": "Save Config",
   "config.saved_tip": "Config saved, restart service to apply",
+  "config.copy": "Copy",
 
   "basic.workspace": "Workspace",
   "basic.workspace_placeholder": "e.g. /home/user/.openviking (Unix) or C:\\Users\\user\\OpenViking (Windows)",
