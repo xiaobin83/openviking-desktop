@@ -27,6 +27,10 @@ const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
   dashscope: 'text-embedding-v3',
 };
 
+const PROVIDER_DEFAULT_API_BASE: Record<string, string> = {
+  volcengine: 'https://ark.cn-beijing.volces.com/api/v3/embeddings/multimodal',
+};
+
 export default function EmbeddingStep({ formData, onChange, hasLocalEmbed }: EmbeddingStepProps) {
   const { t } = useTranslation();
 
@@ -66,6 +70,10 @@ export default function EmbeddingStep({ formData, onChange, hasLocalEmbed }: Emb
       }
       if (updated.dimension === undefined) updated.dimension = 1024;
       if (updated.batch_size === undefined) updated.batch_size = 32;
+      // 设置默认 api_base
+      if (!updated.api_base) {
+        updated.api_base = PROVIDER_DEFAULT_API_BASE[effectiveProvider] || '';
+      }
     }
 
     // 只在有实际变更时才触发
