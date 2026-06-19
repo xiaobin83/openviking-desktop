@@ -1084,7 +1084,7 @@ pub fn run() {
                     let model_path = resolve_bundled_model_path_inner(app.handle());
                     let default_config = serde_json::json!({
                         "server": { "host": "127.0.0.1", "port": 1933, "cors_origins": ["*"] },
-                        "storage": { "workspace": format!("{}/data", get_default_workspace_path()), "vectordb": { "backend": "local" }, "agfs": { "backend": "local" } },
+                        "storage": { "workspace": std::path::Path::new(&get_default_workspace_path()).join("data").to_string_lossy().to_string(), "vectordb": { "backend": "local" }, "agfs": { "backend": "local" } },
                         "embedding": {
                             "dense": { "provider": "local", "model": "bge-small-zh-v1.5-f16", "model_path": model_path },
                             "max_concurrent": 10, "max_retries": 3,
