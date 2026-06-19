@@ -191,6 +191,9 @@
   "python.log_output": "stdout/stderr output",
   "python.select_version": "Select Version & Reinstall",
   "python.stop_server_first": "Stop the server first",
+  "python.local_embed": "Local Embedding Model",
+  "python.local_embed_desc": "Install llama-cpp-python for local GGUF embedding model support",
+  "python.local_embed_win_warning": "Windows requires Visual Studio Build Tools (C++ toolchain) or MinGW-w64 + CMake to build llama-cpp-python. Install them before enabling this option.",
 
   "wizard.title": "Setup Wizard",
   "wizard.step_install": "Install OpenViking",
