@@ -142,6 +142,7 @@ export interface PythonEnvState {
   latestVersion: string | null;
   pythonVersion: string | null;
   upgradable: boolean;
+  hasLocalEmbed: boolean;
 }
 
 export interface PythonTaskProgress {

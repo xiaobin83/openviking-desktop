@@ -124,46 +124,40 @@ pub fn pip_install_openviking_with_wheel(
     upgrade: bool,
     version: Option<&str>,
     prebuilt_wheel: Option<&str>,
+    local_embed: bool,
 ) -> Result<(), String> {
-    // 如果有预编译的 llama-cpp-python wheel，先安装它
-    // 这样 openviking[local-embed] 安装时就无需从源码编译
-    if let Some(wheel_path) = prebuilt_wheel {
-        let wheel = std::path::Path::new(wheel_path);
-        if wheel.exists() {
-            log::info!("pip_install_openviking: pre-installing wheel: {}", wheel_path);
-            run_uv(
-                app,
-                uv_path,
-                &["pip", "install", "--python", venv_python, "--no-deps", wheel_path],
-                "installing_wheel",
-                "安装 llama-cpp-python (预编译)...",
-            )?;
-        } else {
-            log::warn!("pip_install_openviking: wheel not found at {}, skipping", wheel_path);
+    // 如果用户选择了 local-embed，且有预编译的 llama-cpp-python wheel，先安装它
+    if local_embed {
+        if let Some(wheel_path) = prebuilt_wheel {
+            let wheel = std::path::Path::new(wheel_path);
+            if wheel.exists() {
+                log::info!("pip_install_openviking: pre-installing wheel: {}", wheel_path);
+                run_uv(
+                    app,
+                    uv_path,
+                    &["pip", "install", "--python", venv_python, "--no-deps", wheel_path],
+                    "installing_wheel",
+                    "安装 llama-cpp-python (预编译)...",
+                )?;
+            } else {
+                log::warn!("pip_install_openviking: wheel not found at {}, skipping", wheel_path);
+            }
         }
     }
 
+    let extras = if local_embed { "[bot,local-embed]" } else { "[bot]" };
     let package = match version {
-        Some(v) => format!("openviking[bot,local-embed]=={}", v),
-        None => "openviking[bot,local-embed]".to_string(),
+        Some(v) => format!("openviking{}=={}", extras, v),
+        None => format!("openviking{}", extras),
     };
+    let label = if local_embed { "OpenViking (含本地 Embedding)" } else { "OpenViking" };
     if upgrade {
         run_uv(
             app,
             uv_path,
-            &[
-                "pip",
-                "install",
-                "--python",
-                venv_python,
-                "--upgrade",
-                &package,
-            ],
+            &["pip", "install", "--python", venv_python, "--upgrade", &package],
             "upgrading",
-            &format!(
-                "升级 OpenViking{}...",
-                version.map(|v| format!(" v{}", v)).unwrap_or_default()
-            ),
+            &format!("升级 {}...", label),
         )
     } else {
         run_uv(
@@ -171,10 +165,7 @@ pub fn pip_install_openviking_with_wheel(
             uv_path,
             &["pip", "install", "--python", venv_python, &package],
             "installing",
-            &format!(
-                "安装 OpenViking{}...",
-                version.map(|v| format!(" v{}", v)).unwrap_or_default()
-            ),
+            &format!("安装 {}...", label),
         )
     }
 }

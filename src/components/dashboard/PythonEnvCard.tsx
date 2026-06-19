@@ -19,7 +19,9 @@ export default function PythonEnvCard({
     latestVersion: null,
     pythonVersion: null,
     upgradable: false,
+    hasLocalEmbed: false,
   });
+  const [localEmbed, setLocalEmbed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
   const [logs, setLogs] = useState<string[]>([]);
@@ -123,6 +125,7 @@ export default function PythonEnvCard({
       setSelectedPythonVersion(defaultPyVersion);
       setOvVersions(ovVersionsList);
       setSelectedOvVersion(envState.currentVersion || ovVersionsList[0] || '');
+      setLocalEmbed(envState.hasLocalEmbed);
       setShowVersionDialog(true);
     } catch (err) {
       setError(String(err));
@@ -139,7 +142,7 @@ export default function PythonEnvCard({
     setLogs([]);
     setShowLogs(true);
     try {
-      await invoke('install_openviking', { pythonVersion: selectedPythonVersion, openvikingVersion: selectedOvVersion });
+      await invoke('install_openviking', { pythonVersion: selectedPythonVersion, openvikingVersion: selectedOvVersion, localEmbed });
     } catch (err) {
       setError(String(err));
       setLoading(false);
@@ -286,6 +289,22 @@ export default function PythonEnvCard({
                 <option key={v} value={v}>v{v}</option>
               ))}
             </select>
+
+            <label className="mt-3 flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={localEmbed}
+                onChange={(e) => setLocalEmbed(e.target.checked)}
+                className="rounded border-border-subtle bg-surface-elevated text-aurora-400 focus:ring-aurora-400"
+              />
+              <span className="text-xs text-text-secondary">{t('python.local_embed')}</span>
+            </label>
+            <p className="mt-0.5 ml-6 text-[10px] text-text-muted">{t('python.local_embed_desc')}</p>
+            {localEmbed && (
+              <p className="mt-1.5 ml-6 text-[10px] text-amber-400 bg-amber-500/10 rounded px-2 py-1">
+                {t('python.local_embed_win_warning')}
+              </p>
+            )}
 
             <div className="mt-4 flex justify-end gap-2">
               <button

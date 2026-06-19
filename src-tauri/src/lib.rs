@@ -385,6 +385,7 @@ pub struct OpenvikingState {
     pub latest_version: Option<String>,
     pub python_version: Option<String>,
     pub upgradable: bool,
+    pub has_local_embed: bool,
 }
 
 #[tauri::command]
@@ -449,12 +450,26 @@ async fn check_openviking_state(
         python_version = get_python_version_internal(&venv_python);
     }
 
+    let has_local_embed = if installed {
+        let venv_python = state.venv_path.lock().unwrap().clone();
+        std::process::Command::new(&venv_python)
+            .args(["-c", "import llama_cpp"])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false)
+    } else {
+        false
+    };
+
     Ok(OpenvikingState {
         installed,
         current_version,
         latest_version,
         python_version,
         upgradable,
+        has_local_embed,
     })
 }
 
@@ -479,8 +494,10 @@ async fn install_openviking(
     state: tauri::State<'_, ServerState>,
     python_version: Option<String>,
     openviking_version: Option<String>,
+    local_embed: Option<bool>,
 ) -> Result<String, String> {
     let version = python_version.unwrap_or_else(|| DEFAULT_PYTHON_VERSION.to_string());
+    let local_embed = local_embed.unwrap_or(false);
     let uv_path = state.uv_path.clone();
 
     static INSTALLING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -534,6 +551,7 @@ async fn install_openviking(
             false,
             openviking_version.as_deref(),
             wheel.as_deref(),
+            local_embed,
         )?;
 
         Ok(venv_python_str)
@@ -575,6 +593,7 @@ async fn install_openviking(
 async fn upgrade_openviking(
     app: tauri::AppHandle,
     state: tauri::State<'_, ServerState>,
+    local_embed: Option<bool>,
 ) -> Result<String, String> {
     if state.venv_path.lock().unwrap().is_empty() {
         return Err("OpenViking 未安装".to_string());
@@ -587,10 +606,11 @@ async fn upgrade_openviking(
 
     let uv_path = state.uv_path.clone();
     let venv_python = state.venv_path.lock().unwrap().clone();
+    let local_embed = local_embed.unwrap_or(false);
 
     let result = {
         let wheel = resolve_llama_cpp_wheel_inner(&app);
-        python_env::pip_install_openviking_with_wheel(&app, &uv_path, &venv_python, true, None, wheel.as_deref())
+        python_env::pip_install_openviking_with_wheel(&app, &uv_path, &venv_python, true, None, wheel.as_deref(), local_embed)
     };
 
     UPGRADING.store(false, std::sync::atomic::Ordering::Release);
@@ -628,6 +648,7 @@ async fn upgrade_python(
     app: tauri::AppHandle,
     state: tauri::State<'_, ServerState>,
     version: String,
+    local_embed: Option<bool>,
 ) -> Result<String, String> {
     if state.venv_path.lock().unwrap().is_empty() {
         return Err("OpenViking 未安装".to_string());
@@ -667,8 +688,9 @@ async fn upgrade_python(
                 "python3"
             });
         let venv_python_str = venv_python.to_string_lossy().to_string();
+        let local_embed = local_embed.unwrap_or(false);
         let wheel = resolve_llama_cpp_wheel_inner(&app);
-        python_env::pip_install_openviking_with_wheel(&app, &uv_path, &venv_python_str, false, None, wheel.as_deref())?;
+        python_env::pip_install_openviking_with_wheel(&app, &uv_path, &venv_python_str, false, None, wheel.as_deref(), local_embed)?;
 
         Ok(venv_python_str)
     })

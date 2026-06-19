@@ -37,6 +37,7 @@ export default function InstallStep({ isInstalled, onInstalled, onInstallComplet
   const [currentPythonVersion, setCurrentPythonVersion] = useState('');
   const [currentOvVersion, setCurrentOvVersion] = useState('');
   const [fetchingVersions, setFetchingVersions] = useState(false);
+  const [localEmbed, setLocalEmbed] = useState(false);
 
   useEffect(() => {
     if (!isInstalled) return;
@@ -105,7 +106,7 @@ export default function InstallStep({ isInstalled, onInstalled, onInstallComplet
     setCurrentInstallStep(-1);
     setDownloadProgress('');
     try {
-      await invoke('install_openviking', { pythonVersion: selectedPythonVersion, openvikingVersion: selectedOvVersion || undefined });
+      await invoke('install_openviking', { pythonVersion: selectedPythonVersion, openvikingVersion: selectedOvVersion || undefined, localEmbed });
     } catch (err) {
       setError(String(err));
       setInstalling(false);
@@ -186,6 +187,26 @@ export default function InstallStep({ isInstalled, onInstalled, onInstallComplet
             </div>
           </div>
         </div>
+
+        {isInstalled && !installing && !fetchingVersions && (
+          <div className="mt-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={localEmbed}
+                onChange={(e) => setLocalEmbed(e.target.checked)}
+                className="rounded border-border-subtle bg-surface-elevated text-aurora-400 focus:ring-aurora-400"
+              />
+              <span className="text-sm text-text-secondary">{t('python.local_embed')}</span>
+            </label>
+            <p className="mt-0.5 ml-6 text-xs text-text-muted">{t('python.local_embed_desc')}</p>
+            {localEmbed && (
+              <p className="mt-1.5 ml-6 text-xs text-amber-400 bg-amber-500/10 rounded px-2 py-1">
+                {t('python.local_embed_win_warning')}
+              </p>
+            )}
+          </div>
+        )}
       )}
 
       {error && (
