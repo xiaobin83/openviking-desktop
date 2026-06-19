@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type { PythonEnvState, PythonTaskProgress } from '../../lib/types';
+import { DEFAULT_PYTHON_VERSION } from '../../lib/constants';
 
 interface InstallStepProps {
   isInstalled: boolean;
@@ -31,7 +32,7 @@ export default function InstallStep({ isInstalled, onInstalled, onInstallComplet
   // Version selection state (only used when isInstalled)
   const [pythonVersions, setPythonVersions] = useState<string[]>([]);
   const [ovVersions, setOvVersions] = useState<string[]>([]);
-  const [selectedPythonVersion, setSelectedPythonVersion] = useState('3.12');
+  const [selectedPythonVersion, setSelectedPythonVersion] = useState(DEFAULT_PYTHON_VERSION);
   const [selectedOvVersion, setSelectedOvVersion] = useState('');
   const [currentPythonVersion, setCurrentPythonVersion] = useState('');
   const [currentOvVersion, setCurrentOvVersion] = useState('');
@@ -52,7 +53,7 @@ export default function InstallStep({ isInstalled, onInstalled, onInstallComplet
         setOvVersions(ovVersionsList);
         const defaultPy = state.pythonVersion
           ? state.pythonVersion.split('.').slice(0, 2).join('.')
-          : pyVersions.find((v) => v.startsWith('3.12')) || pyVersions[0] || '3.12';
+          : pyVersions.find((v) => v.startsWith(DEFAULT_PYTHON_VERSION)) || pyVersions[0] || DEFAULT_PYTHON_VERSION;
         setSelectedPythonVersion(defaultPy);
         setSelectedOvVersion(state.currentVersion || ovVersionsList[0] || '');
       })
