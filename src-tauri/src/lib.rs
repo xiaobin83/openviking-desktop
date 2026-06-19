@@ -241,8 +241,7 @@ async fn open_app_log_file(state: tauri::State<'_, ServerState>) -> Result<Strin
 fn open_file_with_default_app(path: &str) -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
-        // 使用 explorer.exe 打开文件（比 cmd /c start 更可靠）
-        std::process::Command::new("explorer")
+        std::process::Command::new("notepad")
             .arg(path)
             .spawn()
             .map_err(|e| format!("打开文件失败: {}", e))?;
