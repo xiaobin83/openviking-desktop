@@ -172,6 +172,7 @@
   "python.not_installed": "OpenViking Not Installed",
   "python.not_installed_hint": "Install to start the service",
   "python.checking_hint": "Reading basic info...",
+  "python.reading": "(reading...)",
   "python.install": "Install OpenViking",
   "python.upgrade": "Upgrade to {{version}}",
   "python.reinstall": "Reinstall",
