@@ -249,11 +249,9 @@ async fn open_app_log_file(state: tauri::State<'_, ServerState>) -> Result<Strin
 #[tauri::command]
 fn open_console(state: tauri::State<'_, ServerState>) -> Result<(), String> {
     let venv_python = state.venv_path.lock().unwrap().clone();
-    let workspace = state.workspace_path.lock().unwrap().clone();
-    let workspace = if workspace.is_empty() {
-        "~".to_string()
-    } else {
-        workspace
+    let workspace = {
+        let ws = state.workspace_path.lock().unwrap().clone();
+        if ws.is_empty() { "~".to_string() } else { ws }
     };
 
     let activate = std::path::Path::new(&venv_python)
