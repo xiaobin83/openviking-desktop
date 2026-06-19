@@ -5,6 +5,7 @@ import type { OvConfig } from '../../lib/types';
 interface EmbeddingStepProps {
   formData: Partial<OvConfig>;
   onChange: (data: Partial<OvConfig>) => void;
+  hasLocalEmbed: boolean;
 }
 
 const PROVIDER_OPTIONS = [
@@ -26,10 +27,14 @@ const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
   dashscope: 'text-embedding-v3',
 };
 
-export default function EmbeddingStep({ formData, onChange }: EmbeddingStepProps) {
+export default function EmbeddingStep({ formData, onChange, hasLocalEmbed }: EmbeddingStepProps) {
   const { t } = useTranslation();
 
-  const provider = formData.embedding?.dense?.provider || 'local';
+  const visibleProviders = hasLocalEmbed
+    ? PROVIDER_OPTIONS
+    : PROVIDER_OPTIONS.filter((opt) => opt.value !== 'local');
+
+  const provider = formData.embedding?.dense?.provider || (hasLocalEmbed ? 'local' : 'volcengine');
   const isLocal = provider === 'local';
   const isLocalOrVikingdb = isLocal || provider === 'vikingdb';
 
@@ -97,7 +102,7 @@ export default function EmbeddingStep({ formData, onChange }: EmbeddingStepProps
           onChange={(e) => handleProviderChange(e.target.value)}
           className={fieldStyle}
         >
-          {PROVIDER_OPTIONS.map((opt) => (
+          {visibleProviders.map((opt) => (
             <option key={opt.value} value={opt.value}>
               {opt.label.startsWith('wizard.') ? t(opt.label) : opt.label}
             </option>
