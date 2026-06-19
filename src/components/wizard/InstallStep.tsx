@@ -9,6 +9,7 @@ interface InstallStepProps {
   isInstalled: boolean;
   onInstalled?: () => void;
   onInstallComplete: () => void;
+  onInstallingChange?: (installing: boolean) => void;
 }
 
 const INSTALL_STEPS = [
@@ -17,7 +18,7 @@ const INSTALL_STEPS = [
   { key: 'installing', labelKey: 'python.installing' },
 ];
 
-export default function InstallStep({ isInstalled, onInstalled, onInstallComplete }: InstallStepProps) {
+export default function InstallStep({ isInstalled, onInstalled, onInstallComplete, onInstallingChange }: InstallStepProps) {
   const { t } = useTranslation();
   const [installing, setInstalling] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
@@ -39,6 +40,10 @@ export default function InstallStep({ isInstalled, onInstalled, onInstallComplet
   const [fetchingVersions, setFetchingVersions] = useState(false);
   const [localEmbed, setLocalEmbed] = useState(false);
   const [versionFetchError, setVersionFetchError] = useState('');
+
+  useEffect(() => {
+    onInstallingChange?.(installing);
+  }, [installing, onInstallingChange]);
 
   useEffect(() => {
     if (!isInstalled) return;
