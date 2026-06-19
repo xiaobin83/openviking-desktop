@@ -310,24 +310,54 @@ fn open_console(state: tauri::State<'_, ServerState>) -> Result<(), String> {
         let activate_bat = std::path::Path::new(&venv_python)
             .parent()
             .map(|p| p.join("activate.bat"));
-        let cmd_str = if let Some(ref ap) = activate_bat {
+        // 写临时 bat 文件到 %TEMP%，用于 start 命令（避免嵌套引号）
+        let bat_content = if let Some(ref ap) = activate_bat {
             if ap.exists() {
                 format!(
-                    "echo [workspace] {} && echo [activate] {} && cd /d \"{}\" && call \"{}\" && cmd /k",
+                    "@echo off\r\n\
+                     echo [workspace] {}\r\n\
+                     echo [activate] {}\r\n\
+                     cd /d \"{}\"\r\n\
+                     call \"{}\"\r\n\
+                     cmd /k\r\n",
                     ws_dir,
                     ap.to_string_lossy(),
                     ws_dir,
                     ap.to_string_lossy()
                 )
             } else {
-                format!("echo [workspace] {} && cd /d \"{}\" && cmd /k", ws_dir, ws_dir)
+                format!(
+                    "@echo off\r\n\
+                     echo [workspace] {}\r\n\
+                     echo [activate] (not found)\r\n\
+                     cd /d \"{}\"\r\n\
+                     cmd /k\r\n",
+                    ws_dir, ws_dir
+                )
             }
         } else {
-            format!("echo [workspace] {} && cd /d \"{}\" && cmd /k", ws_dir, ws_dir)
+            format!(
+                "@echo off\r\n\
+                 echo [workspace] {}\r\n\
+                 echo [activate] (not found)\r\n\
+                 cd /d \"{}\"\r\n\
+                 cmd /k\r\n",
+                ws_dir, ws_dir
+            )
         };
 
+        let temp_dir = std::env::temp_dir();
+        let bat_path = temp_dir.join("openviking_console.bat");
+        std::fs::write(&bat_path, bat_content)
+            .map_err(|e| format!("写入临时脚本失败: {}", e))?;
+
         std::process::Command::new("cmd")
-            .args(["/c", "start", "", "cmd", "/k", &cmd_str])
+            .args(["/c", "start", "", &bat_path.to_string_lossy()])
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .map_err(|e| format!("打开终端失败: {}", e))?;
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
