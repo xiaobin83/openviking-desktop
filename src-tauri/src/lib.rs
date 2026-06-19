@@ -351,13 +351,24 @@ fn open_console(state: tauri::State<'_, ServerState>) -> Result<(), String> {
         std::fs::write(&bat_path, bat_content)
             .map_err(|e| format!("写入临时脚本失败: {}", e))?;
 
-        std::process::Command::new("cmd")
-            .args(["/c", "start", "", &bat_path.to_string_lossy()])
+        // 优先使用 Windows Terminal，支持现代 TUI
+        let wt_result = std::process::Command::new("wt")
+            .args(["-d", &ws_dir, "cmd", "/k", &bat_path.to_string_lossy()])
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
-            .spawn()
-            .map_err(|e| format!("打开终端失败: {}", e))?;
+            .spawn();
+
+        if wt_result.is_err() {
+            // 回退到传统 cmd 窗口
+            std::process::Command::new("cmd")
+                .args(["/c", "start", "", &bat_path.to_string_lossy()])
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+                .map_err(|e| format!("打开终端失败: {}", e))?;
+        }
     }
     #[cfg(target_os = "linux")]
     {
