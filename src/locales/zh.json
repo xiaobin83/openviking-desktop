@@ -15,6 +15,7 @@
   "config.reset_to_default": "重置为默认配置",
   "config.save": "保存配置",
   "config.saved_tip": "配置已保存，需重启服务生效",
+  "config.copy": "复制",
 
   "basic.workspace": "工作空间",
   "basic.workspace_placeholder": "例如: /home/user/.openviking (Unix) 或 C:\\Users\\user\\OpenViking (Windows)",

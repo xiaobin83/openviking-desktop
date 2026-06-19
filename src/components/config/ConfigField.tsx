@@ -72,9 +72,9 @@ export default function ConfigFieldRenderer({ field, value, onChange }: ConfigFi
               type="button"
               onClick={() => writeText((value as string) ?? '')}
               className="px-3 py-2 rounded-md border border-border-subtle bg-surface-elevated text-xs text-text-muted hover:text-text-primary hover:border-border-active transition-colors"
-              title="复制"
+              title={t('config.copy')}
             >
-              复制
+              {t('config.copy')}
             </button>
           </div>
         );
