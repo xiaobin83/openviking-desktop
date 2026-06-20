@@ -35,6 +35,97 @@ pub async fn spawn_server_with_app_handle(app: &AppHandle) -> Result<String, Str
     spawn_server(&state, app).await
 }
 
+/// 构建并启动 openviking 服务子进程（公共函数）。
+/// - 从 ov.conf 同步端口配置到 state
+/// - 构建 Python 命令行，设置虚拟环境变量
+/// - 将子进程句柄写入 state.child
+/// 返回 spawn 时使用的服务端口号。
+fn spawn_openviking_process(
+    state: &ServerState,
+    python_path: &str,
+    log_path: &str,
+) -> Result<u16, String> {
+    // 1. 从 ov.conf 同步端口配置
+    let conf_path = get_ov_conf_path(state);
+    if let Ok(content) = std::fs::read_to_string(&conf_path) {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+            if let Some(p) = json["server"]["port"].as_u64() {
+                *state.port.lock().unwrap() = p as u16;
+            }
+            if let Some(p) = json["bot"]["gateway"]["port"].as_u64() {
+                *state.bot_port.lock().unwrap() = p as u16;
+            }
+        }
+    }
+    let port = *state.port.lock().unwrap();
+
+    // 2. 打开日志文件
+    let log_file = OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(log_path)
+        .map_err(|e| format!("无法创建日志文件: {}", e))?;
+
+    // 3. 构建命令
+    let mut command = Command::new(python_path);
+    command
+        .arg("-m")
+        .arg("openviking.server.bootstrap")
+        .arg("--host")
+        .arg("127.0.0.1")
+        .arg("--port")
+        .arg(port.to_string())
+        .arg("--config")
+        .arg(&conf_path)
+        .arg("--with-bot")
+        .env("PYTHONIOENCODING", "utf-8")
+        .env("PYTHONUTF8", "1")
+        .stdout(Stdio::from(log_file.try_clone().unwrap()))
+        .stderr(Stdio::from(log_file));
+
+    #[cfg(unix)]
+    {
+        command.process_group(0);
+    }
+
+    // 4. 设置 VIRTUAL_ENV 环境变量
+    let venv_root = std::path::Path::new(python_path)
+        .parent()
+        .and_then(|p| p.parent())
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_default();
+    if !venv_root.is_empty() {
+        command.env("VIRTUAL_ENV", &venv_root);
+        let venv_bin = std::path::Path::new(&venv_root).join(if cfg!(target_os = "windows") {
+            "Scripts"
+        } else {
+            "bin"
+        });
+        if let Ok(existing_path) = std::env::var("PATH") {
+            let new_path = format!(
+                "{}{}{}",
+                venv_bin.to_string_lossy(),
+                if cfg!(target_os = "windows") { ';' } else { ':' },
+                existing_path
+            );
+            command.env("PATH", &new_path);
+        }
+    }
+
+    // 5. spawn
+    let child = command.spawn().map_err(|e| format!("启动服务失败: {}", e))?;
+
+    log::info!(
+        "spawn_openviking_process: python={} config={} port={} pid={}",
+        python_path, conf_path, port, child.id()
+    );
+
+    // 6. 写入 state
+    *state.child.lock().unwrap() = Some(child);
+
+    Ok(port)
+}
+
 pub async fn spawn_server(state: &ServerState, app: &AppHandle) -> Result<String, String> {
     let python_path = state.venv_path.lock().unwrap().clone();
     if !std::path::Path::new(&python_path).exists() {
@@ -55,75 +146,13 @@ pub async fn spawn_server(state: &ServerState, app: &AppHandle) -> Result<String
     *state.status.lock().unwrap() = "starting".to_string();
     let _ = app.emit("server-status-changed", "starting");
 
-    let port = *state.port.lock().unwrap();
-
-    let log_file = OpenOptions::new()
-        .append(true)
-        .create(true)
-        .open(&state.server_log_path)
+    let spawn_port = spawn_openviking_process(state, &python_path, &state.server_log_path)
         .map_err(|e| {
-            set_error(state, app, &format!("无法创建日志文件: {}", e));
-            format!("无法创建日志文件: {}", e)
+            set_error(state, app, &e);
+            e
         })?;
 
-    let mut command = Command::new(&python_path);
-    command
-        .arg("-m")
-        .arg("openviking.server.bootstrap")
-        .arg("--host")
-        .arg("127.0.0.1")
-        .arg("--port")
-        .arg(port.to_string())
-        .arg("--config")
-        .arg(get_ov_conf_path(state))
-        .arg("--with-bot")
-        .env("PYTHONIOENCODING", "utf-8")
-        .env("PYTHONUTF8", "1")
-        .stdout(Stdio::from(log_file.try_clone().unwrap()))
-        .stderr(Stdio::from(log_file));
-
-    #[cfg(unix)]
-    {
-        command.process_group(0);
-    }
-
-    // 设置 VIRTUAL_ENV 环境变量并修改 PATH，让 Python 子进程能正确识别虚拟环境
-    let venv_root = std::path::Path::new(&python_path)
-        .parent()
-        .and_then(|p| p.parent())
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_default();
-    if !venv_root.is_empty() {
-        command.env("VIRTUAL_ENV", &venv_root);
-        // 将 venv/bin 追加到 PATH
-        let venv_bin = std::path::Path::new(&venv_root).join(if cfg!(target_os = "windows") {
-            "Scripts"
-        } else {
-            "bin"
-        });
-        if let Ok(existing_path) = std::env::var("PATH") {
-            let new_path = format!("{}{}{}", venv_bin.to_string_lossy(), if cfg!(target_os = "windows") { ';' } else { ':' }, existing_path);
-            command.env("PATH", &new_path);
-        }
-    }
-
-    let child = command.spawn().map_err(|e| {
-        let msg = format!("启动服务失败: {}", e);
-        set_error(state, app, &msg);
-        msg
-    })?;
-
-    log::info!(
-        "spawn_server: python={} config={} port={} pid={}",
-        python_path,
-        get_ov_conf_path(state),
-        port,
-        child.id()
-    );
-
-    *state.child.lock().unwrap() = Some(child);
-
-    let health_port = *state.port.lock().unwrap();
+    let health_port = spawn_port;
     let app_for_health = app.clone();
     let state_python_path = state.venv_path.lock().unwrap().clone();
     let state_log_path = state.server_log_path.clone();
@@ -160,7 +189,6 @@ pub async fn spawn_server(state: &ServerState, app: &AppHandle) -> Result<String
                 app_for_health.clone(),
                 url,
                 root_api_key,
-                health_port,
                 state_python_path,
                 state_log_path,
             );
@@ -238,7 +266,6 @@ fn start_runtime_health_monitor(
     app: AppHandle,
     url: String,
     api_key: Option<String>,
-    port: u16,
     venv_path: String,
     log_path: String,
 ) {
@@ -340,89 +367,28 @@ fn start_runtime_health_monitor(
                 *child_opt = None;
             }
 
-            // 重新启动新进程
-            let ov_conf_path = {
-                if let Some(s) = app.try_state::<ServerState>() {
-                    get_ov_conf_path(&s)
-                } else {
-                    break;
-                }
-            };
-
-            let log_file = match OpenOptions::new().append(true).create(true).open(&log_path) {
-                Ok(f) => f,
-                Err(e) => {
-                    if let Some(s) = app.try_state::<ServerState>() {
+            // 重新启动新进程（使用公共函数）
+            let effective_port = if let Some(s) = app.try_state::<ServerState>() {
+                match spawn_openviking_process(&s, &venv_path, &log_path) {
+                    Ok(port) => port,
+                    Err(e) => {
                         *s.status.lock().unwrap() = "error".to_string();
-                        *s.last_error.lock().unwrap() =
-                            format!("重启失败，无法创建日志文件: {}", e);
+                        *s.last_error.lock().unwrap() = e;
+                        let _ = app.emit("server-status-changed", "error");
+                        break;
                     }
-                    let _ = app.emit("server-status-changed", "error");
-                    break;
                 }
+            } else {
+                break;
             };
-
-            let mut command = Command::new(&venv_path);
-            // 设置 VIRTUAL_ENV 环境变量
-            let venv_root = std::path::Path::new(&venv_path)
-                .parent()
-                .and_then(|p| p.parent())
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_default();
-            if !venv_root.is_empty() {
-                command.env("VIRTUAL_ENV", &venv_root);
-                let venv_bin = std::path::Path::new(&venv_root).join(if cfg!(target_os = "windows") {
-            "Scripts"
-        } else {
-            "bin"
-        });
-                if let Ok(existing_path) = std::env::var("PATH") {
-                    let new_path = format!("{}{}{}", venv_bin.to_string_lossy(), if cfg!(target_os = "windows") { ';' } else { ':' }, existing_path);
-                    command.env("PATH", &new_path);
-                }
-            }
-            command
-                .arg("-m")
-                .arg("openviking.server.bootstrap")
-                .arg("--host")
-                .arg("127.0.0.1")
-                .arg("--port")
-                .arg(port.to_string())
-                .arg("--config")
-                .arg(&ov_conf_path)
-                .arg("--with-bot")
-                .env("PYTHONIOENCODING", "utf-8")
-                .env("PYTHONUTF8", "1")
-                .stdout(Stdio::from(log_file.try_clone().unwrap()))
-                .stderr(Stdio::from(log_file));
-
-            #[cfg(unix)]
-            {
-                command.process_group(0);
-            }
-
-            let child = match command.spawn() {
-                Ok(c) => c,
-                Err(e) => {
-                    if let Some(s) = app.try_state::<ServerState>() {
-                        *s.status.lock().unwrap() = "error".to_string();
-                        *s.last_error.lock().unwrap() = format!("重启失败: {}", e);
-                    }
-                    let _ = app.emit("server-status-changed", "error");
-                    break;
-                }
-            };
-
-            if let Some(s) = app.try_state::<ServerState>() {
-                *s.child.lock().unwrap() = Some(child);
-            }
             log::info!("健康监控: restarted new process");
 
             // 等待新进程健康检查就绪（更短的超时时间）
             let restart_start = std::time::Instant::now();
             let restart_timeout = Duration::from_secs(15);
+            let restart_url = format!("http://127.0.0.1:{}/health", effective_port);
             let restarted_ok =
-                wait_for_health(&url, &api_key, restart_start, restart_timeout, 2).await;
+                wait_for_health(&restart_url, &api_key, restart_start, restart_timeout, 2).await;
 
             if restarted_ok {
                 if let Some(s) = app.try_state::<ServerState>() {
@@ -443,6 +409,9 @@ fn start_runtime_health_monitor(
 }
 
 pub async fn stop_server(state: &ServerState, app: &AppHandle) -> Result<String, String> {
+    let server_port = *state.port.lock().unwrap();
+    let bot_port = *state.bot_port.lock().unwrap();
+
     let mut child_opt = state.child.lock().unwrap();
     if let Some(ref mut child) = *child_opt {
         kill_child(child);
@@ -450,8 +419,8 @@ pub async fn stop_server(state: &ServerState, app: &AppHandle) -> Result<String,
     *child_opt = None;
 
     // 确保服务端和 vikingbot 端口也都释放（兜底清理）
-    cleanup_port(1933);
-    cleanup_port(18790);
+    cleanup_port(server_port);
+    cleanup_port(bot_port);
 
     *state.last_error.lock().unwrap() = String::new();
     *state.status.lock().unwrap() = "stopped".to_string();
@@ -459,17 +428,28 @@ pub async fn stop_server(state: &ServerState, app: &AppHandle) -> Result<String,
     Ok("stopped".to_string())
 }
 
-/// 释放指定端口上的进程 (Unix: lsof+kill, Windows: netstat+taskkill)
+/// 释放指定端口上的进程 (Unix: lsof+kill, Windows: 直接解析 netstat 输出)
 pub fn cleanup_port(port: u16) {
     #[cfg(target_os = "windows")]
     {
-        let output = std::process::Command::new("cmd")
-            .args(&["/C", &format!("for /f \"tokens=5\" %a in ('netstat -ano ^| findstr :{}') do taskkill /F /PID %a", port)])
+        let output = std::process::Command::new("netstat")
+            .args(["-ano"])
             .output();
         if let Ok(out) = output {
             let stdout = String::from_utf8_lossy(&out.stdout);
-            if !stdout.trim().is_empty() {
-                log::info!("cleanup_port {}: killed {}", port, stdout.trim());
+            let port_marker = format!(":{}", port);
+            for line in stdout.lines() {
+                if line.contains(&port_marker) && line.contains("LISTENING") {
+                    let parts: Vec<&str> = line.split_whitespace().collect();
+                    if let Some(&pid_str) = parts.last() {
+                        if let Ok(pid) = pid_str.parse::<u32>() {
+                            log::info!("cleanup_port {}: killing PID {}", port, pid);
+                            let _ = std::process::Command::new("taskkill")
+                                .args(["/F", "/PID", &pid.to_string()])
+                                .output();
+                        }
+                    }
+                }
             }
         }
     }
