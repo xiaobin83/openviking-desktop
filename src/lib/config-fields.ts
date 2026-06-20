@@ -40,6 +40,16 @@ const FIELDS: ConfigField[] = [
     max: 65535,
   },
   {
+    path: 'bot.gateway.port',
+    label: 'basic.bot_gateway_port',
+    description: 'basic.bot_gateway_port_desc',
+    type: 'number',
+    tab: 'basic',
+    defaultValue: 18790,
+    min: 1,
+    max: 65535,
+  },
+  {
     path: 'server.root_api_key',
     label: 'basic.root_api_key',
     description: 'basic.root_api_key_desc',
@@ -463,6 +473,7 @@ const defaultConfigObj = {
   vlm: { max_retries: 3, max_concurrent: 100, timeout: 60.0, thinking: false, stream: false },
   encryption: { enabled: false },
   log: { level: 'INFO' },
+  bot: { gateway: { port: 18790 } },
   feishu: {
     domain: 'https://open.feishu.cn',
     max_rows_per_sheet: 1000,

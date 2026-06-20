@@ -134,6 +134,11 @@ export interface OvConfig {
     level?: string;
   };
   feishu?: FeishuConfig;
+  bot?: {
+    gateway?: {
+      port?: number;
+    };
+  };
 }
 
 export interface PythonEnvState {
