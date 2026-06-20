@@ -47,6 +47,7 @@ pub struct ServerState {
     pub child: Mutex<Option<Child>>,
     pub status: Mutex<String>,
     pub port: Mutex<u16>,
+    pub bot_port: Mutex<u16>,
     pub venv_path: Mutex<String>,
     pub workspace_path: Mutex<String>,
     pub server_log_path: String,
@@ -58,11 +59,16 @@ pub struct ServerState {
 
 impl Drop for ServerState {
     fn drop(&mut self) {
+        let server_port = *self.port.lock().unwrap();
+        let bot_port = *self.bot_port.lock().unwrap();
         if let Ok(mut guard) = self.child.try_lock() {
             if let Some(ref mut child) = *guard {
                 log::info!("ServerState::drop: killing openviking-server");
                 crate::process::kill_child(child);
             }
+            drop(guard);
+            crate::process::cleanup_port(server_port);
+            crate::process::cleanup_port(bot_port);
         }
     }
 }
@@ -1061,6 +1067,7 @@ pub fn run() {
                 child: Mutex::new(None),
                 status: Mutex::new("stopped".to_string()),
                 port: Mutex::new(1933),
+                bot_port: Mutex::new(18790),
                 venv_path: Mutex::new(venv_path),
                 workspace_path: Mutex::new(expanded_workspace_path),
                 server_log_path: server_log_path,
@@ -1084,6 +1091,7 @@ pub fn run() {
                     let model_path = resolve_bundled_model_path_inner(app.handle());
                     let default_config = serde_json::json!({
                         "server": { "host": "127.0.0.1", "port": 1933, "cors_origins": ["*"] },
+                        "bot": { "gateway": { "port": 18790 } },
                         "storage": { "workspace": std::path::Path::new(&get_default_workspace_path()).join("data").to_string_lossy().to_string(), "vectordb": { "backend": "local" }, "agfs": { "backend": "local" } },
                         "embedding": {
                             "dense": { "provider": "local", "model": "bge-small-zh-v1.5-f16", "model_path": model_path },
@@ -1099,6 +1107,21 @@ pub fn run() {
                         std::fs::create_dir_all(parent).ok();
                     }
                     std::fs::write(&conf_path, default_config).ok();
+                }
+
+                // 从 ov.conf 读取端口配置，覆盖默认值
+                if let Ok(content) = std::fs::read_to_string(&conf_path) {
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                        if let Some(p) = json["server"]["port"].as_u64() {
+                            *state.port.lock().unwrap() = p as u16;
+                        }
+                        if let Some(p) = json["bot"]["gateway"]["port"].as_u64() {
+                            *state.bot_port.lock().unwrap() = p as u16;
+                        }
+                        log::info!("Config ports: server={}, bot={}",
+                            *state.port.lock().unwrap(),
+                            *state.bot_port.lock().unwrap());
+                    }
                 }
 
                 // 自动启动服务（仅在 openviking 已安装时）
@@ -1189,12 +1212,17 @@ pub fn run() {
                 }
                 tauri::RunEvent::Exit => {
                     if let Some(state) = app_handle.try_state::<ServerState>() {
+                        let server_port = *state.port.lock().unwrap();
+                        let bot_port = *state.bot_port.lock().unwrap();
                         let mut child_opt = state.child.lock().unwrap();
                         if let Some(ref mut c) = *child_opt {
                             log::info!("Killing openviking-server on RunEvent::Exit");
                             crate::process::kill_child(c);
                         }
                         *child_opt = None;
+                        drop(child_opt);
+                        crate::process::cleanup_port(server_port);
+                        crate::process::cleanup_port(bot_port);
                     }
                 }
                 _ => {}
