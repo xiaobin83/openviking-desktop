@@ -28,6 +28,8 @@
   "basic.server_host_desc": "Server listen address, default 127.0.0.1. Set to 0.0.0.0 to allow remote access.",
   "basic.server_port": "Server Port",
   "basic.server_port_desc": "Server listen port, default 1933. Restart service to apply changes.",
+  "basic.bot_gateway_port": "Bot Gateway Port",
+  "basic.bot_gateway_port_desc": "VikingBot gateway service port, default 18790. Restart service to apply changes.",
   "basic.root_api_key": "Root API Key",
   "basic.root_api_key_desc": "Root API key for server authentication. If set, all API requests must include this key via the Authorization header.",
   "basic.storage_path": "Data Storage Path",
