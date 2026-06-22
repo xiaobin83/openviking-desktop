@@ -30,11 +30,15 @@ function authHeaders(): Record<string, string> {
 
 async function fetchApi<T>(path: string): Promise<T> {
   const url = `${BASE_URL}${path}`;
-  console.log(`[API] Request: GET ${url}`);
+  const headers = authHeaders();
+  const headerArgs = Object.entries(headers)
+    .map(([k, v]) => `-H "${k}: ${v}"`)
+    .join(' ');
+  console.log(`[API] rootApiKey=${rootApiKey ? '<set>' : '<EMPTY>'} curl ${headerArgs} "${url}"`);
 
   const startTime = performance.now();
   const response = await fetch(url, {
-    headers: { ...authHeaders() },
+    headers,
   });
   const elapsed = (performance.now() - startTime).toFixed(0);
 
