@@ -43,6 +43,21 @@ export default function PythonEnvCard({
       .then((state) => {
         setEnvState(state);
         onStateChange(state);
+        // 异步查询最新版本（不阻塞 UI）
+        if (state.installed && state.currentVersion) {
+          invoke<{ latest_version: string | null; upgradable: boolean }>(
+            'check_latest_version',
+            { currentVersion: state.currentVersion },
+          )
+            .then((result) => {
+              setEnvState((prev) => ({
+                ...prev,
+                latestVersion: result.latest_version,
+                upgradable: result.upgradable,
+              }));
+            })
+            .catch(() => {}); // 网络不可用时静默
+        }
       })
       .catch(console.error)
       .finally(() => setChecking(false));
