@@ -1,9 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import type { DashboardSummary, MemoryStats } from '../../lib/types';
+import type { DashboardSummary } from '../../lib/types';
 
 interface StatsGridProps {
   summary: DashboardSummary | null;
-  memStats: MemoryStats | null;
 }
 
 interface StatItem {
@@ -19,10 +18,9 @@ const STAT_ICONS: Record<string, string> = {
   memories: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10',
   tokens: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6',
   retrievals: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
-  agents: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z',
 };
 
-export default function StatsGrid({ summary, memStats }: StatsGridProps) {
+export default function StatsGrid({ summary }: StatsGridProps) {
   const items: StatItem[] = [
     {
       labelKey: 'stats.files',
@@ -38,7 +36,7 @@ export default function StatsGrid({ summary, memStats }: StatsGridProps) {
     },
     {
       labelKey: 'stats.memories',
-      value: memStats?.total_memories ?? summary?.context_counts.memories ?? '—',
+      value: summary?.context_counts.memories ?? '—',
       icon: STAT_ICONS.memories,
       descKey: 'stats.memories_desc',
     },
@@ -57,12 +55,6 @@ export default function StatsGrid({ summary, memStats }: StatsGridProps) {
         : '—',
       icon: STAT_ICONS.retrievals,
       descKey: 'stats.retrievals_desc',
-    },
-    {
-      labelKey: 'stats.agents',
-      value: summary?.agent_overview?.total ?? '—',
-      icon: STAT_ICONS.agents,
-      descKey: 'stats.agents_desc',
     },
   ];
 

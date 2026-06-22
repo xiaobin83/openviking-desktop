@@ -22,10 +22,6 @@ export interface DashboardSummary {
     search: number;
     total: number;
   };
-  agent_overview?: {
-    total: number;
-    items: Array<{ agent_id: string; last_seen_at: string }>;
-  };
 }
 
 export interface MemoryStats {
