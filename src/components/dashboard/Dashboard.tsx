@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
-import { checkHealth, getDashboardSummary, getMemoryStats, setRootApiKey, getRootApiKey, setTenant } from '../../lib/api';
+import { checkHealth, getDashboardSummary, setRootApiKey, getRootApiKey, setTenant } from '../../lib/api';
 import type { OvConfig } from '../../lib/types';
-import type { DashboardSummary, MemoryStats, PythonEnvState } from '../../lib/types';
+import type { DashboardSummary, PythonEnvState } from '../../lib/types';
 import StatusCard from './StatusCard';
 import StatsGrid from './StatsGrid';
 import PythonEnvCard from './PythonEnvCard';
@@ -15,7 +15,6 @@ export default function Dashboard() {
   const [serverStatus, setServerStatus] = useState<string>('stopped');
   const [version, setVersion] = useState<string>('');
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [memStats, setMemStats] = useState<MemoryStats | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [pythonInstalled, setPythonInstalled] = useState(false);
   const [rebuildLockExists, setRebuildLockExists] = useState(false);
@@ -65,7 +64,18 @@ export default function Dashboard() {
   useEffect(() => {
     if (serverStatus !== 'running') return;
 
-    const initApi = async () => {
+    const fetchData = async () => {
+      try {
+        const health = await checkHealth();
+        setVersion(health.version);
+        const dashSummary = await getDashboardSummary();
+        setSummary(dashSummary);
+      } catch {
+        // API 调用失败时静默处理
+      }
+    };
+
+    (async () => {
       try {
         const content = await invoke<string>('read_config');
         const config = JSON.parse(content) as OvConfig;
@@ -79,23 +89,9 @@ export default function Dashboard() {
       } catch {
         // 读取配置失败时静默处理
       }
-    };
-    initApi();
+      fetchData();
+    })();
 
-    const fetchData = async () => {
-      try {
-        const health = await checkHealth();
-        setVersion(health.version);
-        const dashSummary = await getDashboardSummary();
-        setSummary(dashSummary);
-        const mem = await getMemoryStats();
-        setMemStats(mem);
-      } catch {
-        // API 调用失败时静默处理
-      }
-    };
-
-    fetchData();
     const interval = setInterval(fetchData, 10_000);
     return () => clearInterval(interval);
   }, [serverStatus]);
@@ -219,7 +215,7 @@ export default function Dashboard() {
             <div className="h-6 w-1 rounded-full bg-gradient-to-b from-aurora-400 to-aurora-600" />
             <h2 className="text-lg font-bold tracking-tight text-text-primary">{t('dashboard.data_overview')}</h2>
           </div>
-          <StatsGrid summary={summary} memStats={memStats} />
+          <StatsGrid summary={summary} />
         </>
       )}
         </>
