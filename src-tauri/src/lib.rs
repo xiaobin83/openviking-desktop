@@ -402,8 +402,8 @@ async fn check_openviking_state(
     let installed = !state.venv_path.lock().unwrap().is_empty();
     let mut current_version = None;
     let mut python_version = None;
-    let mut latest_version = None;
-    let mut upgradable = false;
+    let latest_version = None;
+    let upgradable = false;
 
     if installed {
         let uv_path = &state.uv_path;
@@ -443,15 +443,8 @@ async fn check_openviking_state(
             }
         }
 
-        match python_env::pip_index_latest_version().await {
-            Ok(Some(v)) => latest_version = Some(v),
-            Ok(None) => {} // network unavailable, skip
-            Err(e) => log::warn!("check_openviking_state: index error: {}", e),
-        }
+        // 跳过网络查询，只显示当前已安装版本
 
-        if let (Some(ref cur), Some(ref latest)) = (&current_version, &latest_version) {
-            upgradable = cur != latest;
-        }
 
         python_version = get_python_version_internal(&venv_python);
     }
@@ -477,6 +470,29 @@ async fn check_openviking_state(
         upgradable,
         has_local_embed,
     })
+}
+
+#[derive(serde::Serialize)]
+pub struct LatestVersionResult {
+    pub latest_version: Option<String>,
+    pub upgradable: bool,
+}
+
+#[tauri::command]
+async fn check_latest_version(current_version: String) -> Result<LatestVersionResult, String> {
+    match python_env::pip_index_latest_version().await {
+        Ok(Some(latest)) => {
+            let upgradable = latest != current_version;
+            Ok(LatestVersionResult {
+                latest_version: Some(latest),
+                upgradable,
+            })
+        }
+        Ok(None) | Err(_) => Ok(LatestVersionResult {
+            latest_version: None,
+            upgradable: false,
+        }),
+    }
 }
 
 fn get_python_version_internal(venv_python: &str) -> Option<String> {
@@ -1172,6 +1188,7 @@ pub fn run() {
             open_app_log_file,
             open_console,
             check_openviking_state,
+            check_latest_version,
             install_openviking,
             upgrade_openviking,
             upgrade_python,
