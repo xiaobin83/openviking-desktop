@@ -50,7 +50,7 @@
   "ai.provider_options_local": "Local",
   "ai.model_path": "Model Path",
   "ai.model_path_desc": "Custom GGUF model file path. Uses the bundled model by default.",
-  "ai.dense_provider_desc": "Embedding provider: local (default) / volcengine / openai / jina / gemini / dashscope / vikingdb. No API key needed for local.",
+  "ai.dense_provider_desc": "Embedding provider: volcengine / openai / jina / gemini / dashscope / vikingdb.",
   "ai.dense_api_base_desc": "Embedding API endpoint. Volcengine: https://ark.cn-beijing.volces.com/api/v3",
   "ai.dense_api_key_desc": "API key for the embedding provider.",
   "ai.dense_model_desc": "Embedding model name, e.g. doubao-embedding-vision-251215, text-embedding-3-small.",
