@@ -46,6 +46,15 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
       .finally(() => setCheckingInstall(false));
   }, []);
 
+  // Re-check hasLocalEmbed after installation completes (step 0 -> step 1)
+  useEffect(() => {
+    if (isInstalled) {
+      invoke<PythonEnvState>('check_openviking_state')
+        .then((state) => setHasLocalEmbed(state.hasLocalEmbed))
+        .catch(() => {});
+    }
+  }, [isInstalled]);
+
   // Auto-skip step 0 on initial mount only (user can navigate back manually)
   const initialSkipDone = useRef(false);
   useEffect(() => {
