@@ -25,9 +25,11 @@ export default function PythonEnvCard({
   const [localEmbed, setLocalEmbed] = useState(false);
   const [versionFetchError, setVersionFetchError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('');
+  const [loadingWithLocalEmbed, setLoadingWithLocalEmbed] = useState(false);
+  const [progressStep, setProgressStep] = useState('');
   const [logs, setLogs] = useState<string[]>([]);
   const [showLogs, setShowLogs] = useState(false);
+  const isWindows = typeof navigator !== 'undefined' && /Win/i.test(navigator.platform);
   const [showVersionDialog, setShowVersionDialog] = useState(false);
   const [pythonVersions, setPythonVersions] = useState<string[]>([]);
   const [selectedPythonVersion, setSelectedPythonVersion] = useState('');
@@ -72,10 +74,10 @@ export default function PythonEnvCard({
       if (step === 'error') {
         setError(message);
         setLoading(false);
-        setStatusMessage('');
+        setProgressStep('');
       } else if (done) {
         setLoading(false);
-        setStatusMessage('');
+        setProgressStep('');
         setLogs([]);
         setError('');
         invoke<PythonEnvState>('check_openviking_state')
@@ -88,7 +90,7 @@ export default function PythonEnvCard({
           })
           .catch(console.error);
       } else {
-        setStatusMessage(message);
+        setProgressStep(step);
       }
     });
 
@@ -103,6 +105,7 @@ export default function PythonEnvCard({
 
   const handleInstall = async () => {
     setLoading(true);
+    setLoadingWithLocalEmbed(false);
     setError('');
     setLogs([]);
     setShowLogs(true);
@@ -116,6 +119,7 @@ export default function PythonEnvCard({
 
   const handleUpgrade = async () => {
     setLoading(true);
+    setLoadingWithLocalEmbed(envState.hasLocalEmbed);
     setError('');
     setLogs([]);
     setShowLogs(true);
@@ -165,6 +169,7 @@ export default function PythonEnvCard({
     setShowVersionDialog(false);
     if (!window.confirm(t('python.confirm_reinstall'))) return;
     setLoading(true);
+    setLoadingWithLocalEmbed(localEmbed);
     setError('');
     setLogs([]);
     setShowLogs(true);
@@ -179,6 +184,13 @@ export default function PythonEnvCard({
   const isInstalled = envState.installed;
   const isUpgradable = envState.upgradable;
 
+  const getProgressMessage = (): string => {
+    if (!progressStep) return '';
+    const suffix = (progressStep === 'installing' || progressStep === 'upgrading') && loadingWithLocalEmbed ? '_local' : '';
+    const key = `python.${progressStep}${suffix}`;
+    return t(key, { defaultValue: '' });
+  };
+
   return (
     <>
       <div className="group animate-slide-up rounded-2xl border border-border-subtle bg-surface-card/60 p-5 backdrop-blur-sm transition-all duration-300 hover:border-border-active hover:bg-surface-card/80">
@@ -190,23 +202,29 @@ export default function PythonEnvCard({
             <div>
               <p className="font-semibold text-text-primary">{t('python.env_title')}</p>
               {isInstalled ? (
-                <p className="font-mono text-xs text-text-muted">
-                  {envState.pythonVersion
-                    ? `Python ${envState.pythonVersion}`
-                    : `Python ${t('python.reading')}`}
-                  {' | '}
-                  {envState.currentVersion
-                    ? `OpenViking v${envState.currentVersion}`
-                    : `OpenViking ${t('python.reading')}`}
-                  {!isUpgradable && envState.currentVersion && envState.latestVersion && envState.currentVersion === envState.latestVersion && (
-                    <span className="ml-1 rounded bg-green-500/10 px-1.5 py-0.5 text-[10px] text-green-400">
-                      {t('python.latest')}
+                <div className="space-y-0.5">
+                  <p className="font-mono text-xs text-text-muted">
+                    {envState.pythonVersion
+                      ? `Python ${envState.pythonVersion}`
+                      : `Python ${t('python.reading')}`}
+                  </p>
+                  <p className="font-mono text-xs text-text-muted">
+                    {envState.currentVersion
+                      ? `OpenViking v${envState.currentVersion}`
+                      : `OpenViking ${t('python.reading')}`}
+                    <span className="ml-1 rounded bg-surface-elevated px-1 py-0.5 text-[9px] text-text-muted">
+                      [{envState.hasLocalEmbed ? 'bot, local-embed' : 'bot'}]
                     </span>
-                  )}
-                  {isUpgradable && envState.latestVersion && (
-                    <span className="ml-1 text-aurora-400"> → v{envState.latestVersion}</span>
-                  )}
-                </p>
+                    {!isUpgradable && envState.currentVersion && envState.latestVersion && envState.currentVersion === envState.latestVersion && (
+                      <span className="ml-1 rounded bg-green-500/10 px-1.5 py-0.5 text-[10px] text-green-400">
+                        {t('python.latest')}
+                      </span>
+                    )}
+                    {isUpgradable && envState.latestVersion && (
+                      <span className="ml-1 text-aurora-400"> → v{envState.latestVersion}</span>
+                    )}
+                  </p>
+                </div>
               ) : checking ? (
                 <p className="text-xs text-text-muted">{t('python.checking_hint')}</p>
               ) : (
@@ -224,14 +242,18 @@ export default function PythonEnvCard({
               </button>
             )}
             {isUpgradable && !loading && (
-              <button
-                onClick={handleUpgrade}
-                disabled={!serverStopped}
-                title={!serverStopped ? t('python.stop_server_first') : ''}
-                className="rounded-xl bg-aurora-500/15 px-5 py-2 text-sm font-medium text-aurora-400 transition-all hover:bg-aurora-500/25 hover:shadow-lg hover:shadow-aurora-500/10 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {t('python.upgrade', { version: envState.latestVersion })}
-              </button>
+              <div className="flex flex-col items-center gap-1">
+                <button
+                  onClick={handleUpgrade}
+                  disabled={!serverStopped}
+                  className="rounded-lg bg-aurora-500/15 px-3 py-1.5 text-xs font-medium text-aurora-400 transition-all hover:bg-aurora-500/25 hover:shadow-lg hover:shadow-aurora-500/10 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {t('python.upgrade', { version: envState.latestVersion })}
+                </button>
+                {!serverStopped && (
+                  <p className="text-[10px] text-amber-400/80">{t('python.stop_server_first')}</p>
+                )}
+              </div>
             )}
             {isInstalled && !loading && serverStopped && (
               <button
@@ -254,7 +276,7 @@ export default function PythonEnvCard({
             <div className="h-2 w-full overflow-hidden rounded-full bg-surface-elevated">
               <div className="h-full animate-pulse rounded-full bg-gradient-to-r from-aurora-400 to-aurora-600" style={{ width: '60%' }} />
             </div>
-            <p className="text-xs text-aurora-400">{statusMessage}</p>
+            <p className="text-xs text-aurora-400">{getProgressMessage()}</p>
           </div>
         )}
 
@@ -335,7 +357,7 @@ export default function PythonEnvCard({
               <span className="text-xs text-text-secondary">{t('python.local_embed')}</span>
             </label>
             <p className="mt-0.5 ml-6 text-[10px] text-text-muted">{t('python.local_embed_desc')}</p>
-            {localEmbed && (
+            {localEmbed && isWindows && (
               <p className="mt-1.5 ml-6 text-[10px] text-amber-400 bg-amber-500/10 rounded px-2 py-1">
                 {t('python.local_embed_win_warning')}
               </p>
