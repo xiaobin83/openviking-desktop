@@ -74,10 +74,17 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     return !!(vlm?.model && vlm?.api_key && vlm?.api_base);
   }, [formData.vlm]);
 
+  const isWorkspaceValid = useCallback(() => {
+    const ws = formData.storage?.workspace;
+    // Empty input produces degenerate "/data" path; treat as invalid
+    return !!(ws && ws !== '/data');
+  }, [formData.storage?.workspace]);
+
   const isStepValid = useCallback(() => {
+    if (stepIndex === 1) return isWorkspaceValid();
     if (stepIndex === 3) return isVlmValid();
     return true;
-  }, [stepIndex, isVlmValid]);
+  }, [stepIndex, isWorkspaceValid, isVlmValid]);
 
   const handleBack = useCallback(() => {
     if (stepIndex > 0) {

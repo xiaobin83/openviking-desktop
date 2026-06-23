@@ -20,8 +20,14 @@ export default function WorkspaceStep({ formData, onChange }: WorkspaceStepProps
     if (initialised.current) return;
     initialised.current = true;
     invoke<string>('get_default_workspace')
-      .then(persistWorkspace)
-      .catch(() => persistWorkspace('~/.openviking'));
+      .then((defaultPath) => {
+        setDraft(defaultPath);
+        persistWorkspace(defaultPath);
+      })
+      .catch(() => {
+        setDraft('~/.openviking');
+        persistWorkspace('~/.openviking');
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -54,7 +60,10 @@ export default function WorkspaceStep({ formData, onChange }: WorkspaceStepProps
 
   const handleChange = (value: string) => {
     setDraft(value);
-    persistWorkspace(value);
+    // Don't persist empty input — validation in OnboardingWizard will block Next
+    if (value.trim()) {
+      persistWorkspace(value);
+    }
   };
 
   const fieldStyle = "w-full rounded-lg bg-surface-hover border border-border-subtle px-3 py-2.5 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-aurora-400/50 transition-colors";
