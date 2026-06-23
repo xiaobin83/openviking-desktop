@@ -50,7 +50,7 @@
   "ai.provider_options_local": "本地 (Local)",
   "ai.model_path": "模型路径 (model_path)",
   "ai.model_path_desc": "自定义 GGUF 模型文件路径，默认使用预打包模型。",
-  "ai.dense_provider_desc": "Embedding provider：local（默认）/ volcengine / openai / jina / gemini / dashscope / vikingdb。选择 local 时无需 API 密钥。",
+  "ai.dense_provider_desc": "Embedding provider：volcengine / openai / jina / gemini / dashscope / vikingdb。",
   "ai.dense_api_base_desc": "Embedding API 的请求端点地址。火山引擎：https://ark.cn-beijing.volces.com/api/v3",
   "ai.dense_api_key_desc": "Embedding API 的密钥。",
   "ai.dense_model_desc": "Embedding 模型名称，如 doubao-embedding-vision-251215、text-embedding-3-small。",
