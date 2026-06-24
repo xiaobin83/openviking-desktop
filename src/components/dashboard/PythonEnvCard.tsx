@@ -9,9 +9,11 @@ import { ChevronDownIcon, ChevronRightIcon } from '../Icons';
 export default function PythonEnvCard({
   onStateChange,
   serverStopped,
+  onInstallingChange,
 }: {
   onStateChange: (state: PythonEnvState) => void;
   serverStopped: boolean;
+  onInstallingChange?: (installing: boolean) => void;
 }) {
   const { t } = useTranslation();
   const [envState, setEnvState] = useState<PythonEnvState>({
@@ -39,6 +41,10 @@ export default function PythonEnvCard({
   const [checking, setChecking] = useState(true);
   const [fetchingVersions, setFetchingVersions] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    onInstallingChange?.(loading);
+  }, [loading, onInstallingChange]);
 
   useEffect(() => {
     invoke<PythonEnvState>('check_openviking_state')

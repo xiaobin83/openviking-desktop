@@ -21,6 +21,7 @@ export default function Dashboard() {
   const [embeddingRebuildNeeded, setEmbeddingRebuildNeeded] = useState(false);
   const [toast, setToast] = useState('');
   const [playgroundOpening, setPlaygroundOpening] = useState(false);
+  const [isPythonInstalling, setIsPythonInstalling] = useState(false);
 
   useEffect(() => {
     const unlisten = listen<string>('server-status-changed', (event) => {
@@ -154,7 +155,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-5">
-      <PythonEnvCard onStateChange={handlePythonStateChange} serverStopped={serverStatus === 'stopped'} />
+      <PythonEnvCard onStateChange={handlePythonStateChange} serverStopped={serverStatus === 'stopped'} onInstallingChange={setIsPythonInstalling} />
       {rebuildLockExists && (
         <div className="bg-amber-500/10 border border-amber-500/20 rounded-md px-4 py-3 text-sm text-amber-400 flex items-center gap-3">
           <span className="flex-1">{t('dashboard.rebuild_incomplete')}</span>
@@ -206,6 +207,7 @@ export default function Dashboard() {
             onShowLog={() => invoke('open_log_file')}
             onShowAppLog={() => invoke('open_app_log_file')}
             onRebuildEmbedding={embeddingRebuildNeeded ? handleRebuildEmbedding : undefined}
+            disabled={isPythonInstalling}
           />
         </div>
       </div>
