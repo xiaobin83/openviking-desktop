@@ -4,6 +4,9 @@ use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use tauri::{AppHandle, Emitter};
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
 #[derive(Clone, Serialize)]
 pub struct ProgressPayload {
     pub step: String,
@@ -18,10 +21,16 @@ fn run_uv(
     args: &[&str],
     step: &str,
     message: &str,
+    python_install_dir: &str,
 ) -> Result<(), String> {
     let mut cmd = Command::new(uv_path);
     for arg in args {
         cmd.arg(arg);
+    }
+    cmd.env("UV_PYTHON_INSTALL_DIR", python_install_dir);
+    #[cfg(target_os = "windows")]
+    {
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
     }
 
     let mut child = cmd
@@ -67,10 +76,15 @@ fn run_uv(
     Ok(())
 }
 
-fn run_uv_output(uv_path: &str, args: &[&str]) -> Result<String, String> {
-    let output = Command::new(uv_path)
-        .args(args)
-        .output()
+fn run_uv_output(uv_path: &str, args: &[&str], python_install_dir: &str) -> Result<String, String> {
+    let mut cmd = Command::new(uv_path);
+    cmd.args(args);
+    cmd.env("UV_PYTHON_INSTALL_DIR", python_install_dir);
+    #[cfg(target_os = "windows")]
+    {
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    let output = cmd.output()
         .map_err(|e| format!("执行 uv 失败: {}", e))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -79,10 +93,15 @@ fn run_uv_output(uv_path: &str, args: &[&str]) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
-pub fn python_is_installed(uv_path: &str, version: &str) -> bool {
-    let output = Command::new(uv_path)
-        .args(["python", "list", "--only-installed"])
-        .output();
+pub fn python_is_installed(uv_path: &str, version: &str, python_install_dir: &str) -> bool {
+    let mut cmd = Command::new(uv_path);
+    cmd.args(["python", "list", "--only-installed"]);
+    cmd.env("UV_PYTHON_INSTALL_DIR", python_install_dir);
+    #[cfg(target_os = "windows")]
+    {
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    let output = cmd.output();
     match output {
         Ok(o) if o.status.success() => {
             let text = String::from_utf8_lossy(&o.stdout);
@@ -92,13 +111,14 @@ pub fn python_is_installed(uv_path: &str, version: &str) -> bool {
     }
 }
 
-pub fn python_install(app: &AppHandle, uv_path: &str, version: &str) -> Result<(), String> {
+pub fn python_install(app: &AppHandle, uv_path: &str, version: &str, python_install_dir: &str) -> Result<(), String> {
     run_uv(
         app,
         uv_path,
         &["python", "install", version],
         "downloading_python",
         &format!("下载 Python {}...", version),
+        python_install_dir,
     )
 }
 
@@ -107,6 +127,7 @@ pub fn venv_create(
     uv_path: &str,
     python_version: &str,
     target: &str,
+    python_install_dir: &str,
 ) -> Result<(), String> {
     run_uv(
         app,
@@ -114,6 +135,7 @@ pub fn venv_create(
         &["venv", "--python", python_version, target],
         "creating_venv",
         "创建虚拟环境...",
+        python_install_dir,
     )
 }
 
@@ -125,6 +147,7 @@ pub fn pip_install_openviking_with_wheel(
     version: Option<&str>,
     prebuilt_wheel: Option<&str>,
     local_embed: bool,
+    python_install_dir: &str,
 ) -> Result<(), String> {
     // 如果用户选择了 local-embed，且有预编译的 llama-cpp-python wheel，先安装它
     if local_embed {
@@ -138,6 +161,7 @@ pub fn pip_install_openviking_with_wheel(
                     &["pip", "install", "--python", venv_python, "--no-deps", wheel_path],
                     "installing_wheel",
                     "安装 llama-cpp-python (预编译)...",
+                    python_install_dir,
                 )?;
             } else {
                 log::warn!("pip_install_openviking: wheel not found at {}, skipping", wheel_path);
@@ -158,6 +182,7 @@ pub fn pip_install_openviking_with_wheel(
             &["pip", "install", "--python", venv_python, "--upgrade", &package],
             "upgrading",
             &format!("升级 {}...", label),
+            python_install_dir,
         )
     } else {
         run_uv(
@@ -166,11 +191,12 @@ pub fn pip_install_openviking_with_wheel(
             &["pip", "install", "--python", venv_python, &package],
             "installing",
             &format!("安装 {}...", label),
+            python_install_dir,
         )
     }
 }
 
-pub fn pip_show_openviking(uv_path: &str, venv_python: &str) -> Result<Option<String>, String> {
+pub fn pip_show_openviking(uv_path: &str, venv_python: &str, python_install_dir: &str) -> Result<Option<String>, String> {
     log::info!(
         "pip_show_openviking: uv={}, python={}",
         uv_path,
@@ -181,6 +207,7 @@ pub fn pip_show_openviking(uv_path: &str, venv_python: &str) -> Result<Option<St
     match run_uv_output(
         uv_path,
         &["pip", "list", "--python", venv_python, "--format", "json"],
+        python_install_dir,
     ) {
         Ok(json) => {
             let json = json.trim_start_matches('\u{FEFF}').trim();
@@ -233,6 +260,7 @@ pub fn pip_show_openviking(uv_path: &str, venv_python: &str) -> Result<Option<St
     match run_uv_output(
         uv_path,
         &["pip", "show", "--python", venv_python, "openviking"],
+        python_install_dir,
     ) {
         Ok(text) => {
             for line in text.lines() {
@@ -265,9 +293,13 @@ pub fn pip_show_openviking(uv_path: &str, venv_python: &str) -> Result<Option<St
 }
 
 fn get_version_via_python(venv_python: &str) -> Result<Option<String>, String> {
-    let output = std::process::Command::new(venv_python)
-        .args(["-c", "import importlib.metadata; print(importlib.metadata.version('openviking'))"])
-        .output()
+    let mut cmd = std::process::Command::new(venv_python);
+    cmd.args(["-c", "import importlib.metadata; print(importlib.metadata.version('openviking'))"]);
+    #[cfg(target_os = "windows")]
+    {
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    let output = cmd.output()
         .map_err(|e| format!("执行 Python 失败: {}", e))?;
     if output.status.success() {
         let text = String::from_utf8_lossy(&output.stdout);
@@ -319,8 +351,8 @@ pub async fn pip_index_latest_version() -> Result<Option<String>, String> {
     Ok(versions.into_iter().next())
 }
 
-pub fn python_list_all(uv_path: &str) -> Result<Vec<String>, String> {
-    let output = run_uv_output(uv_path, &["python", "list", "--all-versions"])?;
+pub fn python_list_all(uv_path: &str, python_install_dir: &str) -> Result<Vec<String>, String> {
+    let output = run_uv_output(uv_path, &["python", "list", "--all-versions"], python_install_dir)?;
     let mut versions: Vec<String> = output
         .lines()
         .filter_map(|l| {
