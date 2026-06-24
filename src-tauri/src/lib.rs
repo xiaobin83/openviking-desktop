@@ -12,7 +12,6 @@ mod python_env;
 mod tray;
 
 // --- Path constants ---
-const DEFAULT_OV_CONF_PATH: &str = ".openviking/ov.conf";
 const ONBOARDED_FLAG_NAME: &str = ".openviking/.onboarded";
 const OV_CONF_FILENAME: &str = "ov.conf";
 const WORKSPACE_PATH_FILENAME: &str = "workspace_path";
@@ -21,7 +20,6 @@ const DATA_SUBDIR: &str = "data";
 const VECTORDB_SUBDIR: &str = "vectordb";
 const REBUILD_LOCK_FILENAME: &str = "rebuild_lock.json";
 const DEFAULT_WORKSPACE_NAME: &str = "OpenViking";
-const DEFAULT_UNIX_WORKSPACE: &str = "~/.openviking";
 const DEFAULT_PYTHON_VERSION: &str = "3.13";
 
 fn get_home_dir() -> std::path::PathBuf {
@@ -66,6 +64,7 @@ pub struct ServerState {
     pub desktop_log_path: String,
     pub last_error: Mutex<String>,
     pub uv_path: String,
+    pub app_data_dir: Mutex<String>,
     pub openviking_version: Mutex<String>,
 }
 
@@ -142,8 +141,9 @@ fn get_default_workspace() -> String {
 pub fn get_ov_conf_path(state: &ServerState) -> String {
     let workspace = state.workspace_path.lock().unwrap().clone();
     if workspace.is_empty() {
-        let home = get_home_dir();
-        home.join(DEFAULT_OV_CONF_PATH)
+        let app_data_dir = state.app_data_dir.lock().unwrap().clone();
+        std::path::Path::new(&app_data_dir)
+            .join(OV_CONF_FILENAME)
             .to_string_lossy()
             .to_string()
     } else {
@@ -163,9 +163,12 @@ fn get_ov_conf_dir(state: &ServerState) -> String {
         .unwrap_or_else(|| "/tmp".to_string())
 }
 
-fn get_onboarded_flag_path() -> String {
-    let home = get_home_dir();
-    home.join(ONBOARDED_FLAG_NAME).to_string_lossy().to_string()
+fn get_onboarded_flag_path(state: &ServerState) -> String {
+    let app_data_dir = state.app_data_dir.lock().unwrap().clone();
+    std::path::Path::new(&app_data_dir)
+        .join(".onboarded")
+        .to_string_lossy()
+        .to_string()
 }
 
 #[tauri::command]
@@ -231,7 +234,7 @@ async fn set_workspace(
 fn get_workspace_data_path(state: tauri::State<'_, ServerState>) -> Result<String, String> {
     let workspace = state.workspace_path.lock().unwrap().clone();
     let base = if workspace.is_empty() {
-        expand_tilde(DEFAULT_UNIX_WORKSPACE)
+        expand_tilde(&get_default_workspace_path())
     } else {
         workspace
     };
@@ -896,9 +899,9 @@ fn resolve_bundled_model_path_inner(app: &tauri::AppHandle) -> String {
 
 fn resolve_llama_cpp_wheel_inner(app: &tauri::AppHandle) -> Option<String> {
     let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let dev_dir = manifest_dir.join("Resources/wheels");
+    let dev_dir = manifest_dir.join("Resources").join("wheels");
     let resource_dir = app.path().resource_dir().ok()?;
-    let prod_dir = resource_dir.join("Resources/wheels");
+    let prod_dir = resource_dir.join("Resources").join("wheels");
 
     // 在目录中查找 llama_cpp_python-*.whl 文件
     let search_dir = if dev_dir.exists() { &dev_dir } else { &prod_dir };
@@ -937,7 +940,8 @@ fn resolve_bundled_model_path(app: tauri::AppHandle) -> Result<String, String> {
 fn resolve_vectordb_path(state: tauri::State<'_, ServerState>) -> Result<String, String> {
     let workspace = state.workspace_path.lock().unwrap().clone();
     let expanded = if workspace.is_empty() {
-        std::path::Path::new(DEFAULT_UNIX_WORKSPACE)
+        let expanded_ws = expand_tilde(&get_default_workspace_path());
+        std::path::Path::new(&expanded_ws)
             .join(DATA_SUBDIR)
             .to_string_lossy()
             .to_string()
@@ -1008,12 +1012,12 @@ fn delete_rebuild_lock(state: tauri::State<'_, ServerState>) -> Result<(), Strin
 }
 
 #[tauri::command]
-async fn is_onboarded() -> Result<bool, String> {
-    let flag_path = get_onboarded_flag_path();
+async fn is_onboarded(state: tauri::State<'_, ServerState>) -> Result<bool, String> {
+    let flag_path = get_onboarded_flag_path(&state);
     if std::path::Path::new(&flag_path).exists() {
         return Ok(true);
     }
-    // Fallback: check old location for backward compatibility
+    // Fallback: check old home_dir location for backward compatibility
     let old_flag_path = get_home_dir()
         .join(ONBOARDED_FLAG_NAME)
         .to_string_lossy()
@@ -1027,8 +1031,8 @@ fn get_app_version() -> String {
 }
 
 #[tauri::command]
-async fn mark_onboarded() -> Result<String, String> {
-    let flag_path = get_onboarded_flag_path();
+async fn mark_onboarded(state: tauri::State<'_, ServerState>) -> Result<String, String> {
+    let flag_path = get_onboarded_flag_path(&state);
     if let Some(parent) = std::path::Path::new(&flag_path).parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("创建目录失败: {}", e))?;
     }
@@ -1047,6 +1051,7 @@ pub fn run() {
         .setup(|app| {
             let home = get_home_dir();
             let app_data_dir = app.path().app_data_dir().expect("no app data dir");
+            let app_data_dir_str = app_data_dir.to_string_lossy().to_string();
             // macOS: ~/Library/Logs/OpenViking (backward compat)
             // Windows: %APPDATA%/com.openviking.desktop/logs
             // Linux: ~/.local/share/com.openviking.desktop/logs
@@ -1155,13 +1160,14 @@ pub fn run() {
                 desktop_log_path: desktop_log_path.clone(),
                 last_error: Mutex::new(String::new()),
                 uv_path,
+                app_data_dir: Mutex::new(app_data_dir_str.clone()),
                 openviking_version: Mutex::new(cached_version),
             });
 
             tray::create_tray(app.handle())?;
 
             let state = app.state::<ServerState>();
-            let onboarded = std::path::Path::new(&get_onboarded_flag_path()).exists();
+            let onboarded = std::path::Path::new(&get_onboarded_flag_path(&state)).exists();
             log::info!("Onboarded flag: {}", onboarded);
 
             if onboarded {
