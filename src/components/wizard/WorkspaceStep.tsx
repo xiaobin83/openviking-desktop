@@ -4,6 +4,9 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import type { OvConfig } from '../../lib/types';
 
+const isWindows = typeof navigator !== 'undefined' && /Win/i.test(navigator.platform);
+const FALLBACK_WORKSPACE = isWindows ? '%USERPROFILE%\\OpenViking' : '~/.openviking';
+
 interface WorkspaceStepProps {
   formData: Partial<OvConfig>;
   onChange: (data: Partial<OvConfig>) => void;
@@ -25,8 +28,8 @@ export default function WorkspaceStep({ formData, onChange }: WorkspaceStepProps
         persistWorkspace(defaultPath);
       })
       .catch(() => {
-        setDraft('~/.openviking');
-        persistWorkspace('~/.openviking');
+        setDraft(FALLBACK_WORKSPACE);
+        persistWorkspace(FALLBACK_WORKSPACE);
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
