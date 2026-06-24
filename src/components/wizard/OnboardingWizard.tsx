@@ -76,8 +76,8 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
 
   const isWorkspaceValid = useCallback(() => {
     const ws = formData.storage?.workspace;
-    // Empty input produces degenerate "/data" path; treat as invalid
-    return !!(ws && ws !== '/data');
+    // Workspace must be non-empty; Rust backend always returns proper Path::join
+    return !!ws;
   }, [formData.storage?.workspace]);
 
   const isStepValid = useCallback(() => {

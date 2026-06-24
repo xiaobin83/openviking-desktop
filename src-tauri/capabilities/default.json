@@ -20,6 +20,9 @@
           "path": "$HOME/.openviking/**"
         },
         {
+          "path": "$HOME/OpenViking/**"
+        },
+        {
           "path": "$HOME/Library/Logs/OpenViking/**"
         },
         {

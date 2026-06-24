@@ -8,8 +8,17 @@ mod process;
 mod python_env;
 mod tray;
 
+// --- Path constants ---
 const DEFAULT_OV_CONF_PATH: &str = ".openviking/ov.conf";
 const ONBOARDED_FLAG_NAME: &str = ".openviking/.onboarded";
+const OV_CONF_FILENAME: &str = "ov.conf";
+const WORKSPACE_PATH_FILENAME: &str = "workspace_path";
+const OPENVIKING_VERSION_FILENAME: &str = "openviking_version";
+const DATA_SUBDIR: &str = "data";
+const VECTORDB_SUBDIR: &str = "vectordb";
+const REBUILD_LOCK_FILENAME: &str = "rebuild_lock.json";
+const DEFAULT_WORKSPACE_NAME: &str = "OpenViking";
+const DEFAULT_UNIX_WORKSPACE: &str = "~/.openviking";
 const DEFAULT_PYTHON_VERSION: &str = "3.13";
 
 fn get_home_dir() -> std::path::PathBuf {
@@ -114,11 +123,11 @@ pub fn expand_tilde(path: &str) -> String {
 pub fn get_default_workspace_path() -> String {
     #[cfg(target_os = "windows")]
     {
-        get_home_dir().join("OpenViking").to_string_lossy().to_string()
+        get_home_dir().join(DEFAULT_WORKSPACE_NAME).to_string_lossy().to_string()
     }
     #[cfg(not(target_os = "windows"))]
     {
-        "~/.openviking".to_string()
+        DEFAULT_UNIX_WORKSPACE.to_string()
     }
 }
 
@@ -137,7 +146,7 @@ pub fn get_ov_conf_path(state: &ServerState) -> String {
     } else {
         let expanded = expand_tilde(&workspace);
         std::path::Path::new(&expanded)
-            .join("ov.conf")
+            .join(OV_CONF_FILENAME)
             .to_string_lossy()
             .to_string()
     }
@@ -199,20 +208,34 @@ async fn set_workspace(
         .app_data_dir()
         .map_err(|e| format!("获取应用数据目录失败: {}", e))?;
     std::fs::create_dir_all(&app_data_dir).map_err(|e| format!("创建应用数据目录失败: {}", e))?;
-    let workspace_file = app_data_dir.join("workspace_path");
+    let workspace_file = app_data_dir.join(WORKSPACE_PATH_FILENAME);
     std::fs::write(&workspace_file, &expanded)
         .map_err(|e| format!("保存工作空间路径失败: {}", e))?;
 
     std::fs::create_dir_all(&expanded).map_err(|e| format!("创建工作空间目录失败: {}", e))?;
 
     // 同时创建 data/ 子目录（实际知识库数据存储目录）
-    let data_dir = std::path::Path::new(&expanded).join("data");
+    let data_dir = std::path::Path::new(&expanded).join(DATA_SUBDIR);
     std::fs::create_dir_all(&data_dir)
         .map_err(|e| format!("创建工作空间 data 目录失败: {}", e))?;
 
     *state.workspace_path.lock().unwrap() = expanded;
 
     Ok("ok".to_string())
+}
+
+#[tauri::command]
+fn get_workspace_data_path(state: tauri::State<'_, ServerState>) -> Result<String, String> {
+    let workspace = state.workspace_path.lock().unwrap().clone();
+    let base = if workspace.is_empty() {
+        expand_tilde(DEFAULT_UNIX_WORKSPACE)
+    } else {
+        workspace
+    };
+    Ok(std::path::Path::new(&base)
+        .join(DATA_SUBDIR)
+        .to_string_lossy()
+        .to_string())
 }
 
 #[tauri::command]
@@ -883,12 +906,15 @@ fn resolve_bundled_model_path(app: tauri::AppHandle) -> Result<String, String> {
 fn resolve_vectordb_path(state: tauri::State<'_, ServerState>) -> Result<String, String> {
     let workspace = state.workspace_path.lock().unwrap().clone();
     let expanded = if workspace.is_empty() {
-        expand_tilde("~/.openviking/data")
+        std::path::Path::new(DEFAULT_UNIX_WORKSPACE)
+            .join(DATA_SUBDIR)
+            .to_string_lossy()
+            .to_string()
     } else {
         workspace
     };
     let mut vdb_path = std::path::PathBuf::from(&expanded);
-    vdb_path.push("vectordb");
+    vdb_path.push(VECTORDB_SUBDIR);
     Ok(vdb_path.to_string_lossy().to_string())
 }
 
@@ -922,7 +948,7 @@ fn kill_port_process(port: u16) -> Result<(), String> {
 #[tauri::command]
 fn read_rebuild_lock(state: tauri::State<'_, ServerState>) -> Result<Option<String>, String> {
     let dir = get_ov_conf_dir(&state);
-    let lock_path = std::path::Path::new(&dir).join("rebuild_lock.json");
+    let lock_path = std::path::Path::new(&dir).join(REBUILD_LOCK_FILENAME);
     if lock_path.exists() {
         std::fs::read_to_string(&lock_path)
             .map(Some)
@@ -935,14 +961,14 @@ fn read_rebuild_lock(state: tauri::State<'_, ServerState>) -> Result<Option<Stri
 #[tauri::command]
 fn write_rebuild_lock(state: tauri::State<'_, ServerState>, content: String) -> Result<(), String> {
     let dir = get_ov_conf_dir(&state);
-    let lock_path = std::path::Path::new(&dir).join("rebuild_lock.json");
+    let lock_path = std::path::Path::new(&dir).join(REBUILD_LOCK_FILENAME);
     std::fs::write(&lock_path, &content).map_err(|e| format!("写入锁文件失败: {}", e))
 }
 
 #[tauri::command]
 fn delete_rebuild_lock(state: tauri::State<'_, ServerState>) -> Result<(), String> {
     let dir = get_ov_conf_dir(&state);
-    let lock_path = std::path::Path::new(&dir).join("rebuild_lock.json");
+    let lock_path = std::path::Path::new(&dir).join(REBUILD_LOCK_FILENAME);
     if lock_path.exists() {
         std::fs::remove_file(&lock_path).map_err(|e| format!("删除锁文件失败: {}", e))
     } else {
@@ -958,7 +984,7 @@ async fn is_onboarded() -> Result<bool, String> {
     }
     // Fallback: check old location for backward compatibility
     let old_flag_path = get_home_dir()
-        .join(".openviking/.onboarded")
+        .join(ONBOARDED_FLAG_NAME)
         .to_string_lossy()
         .to_string();
     Ok(std::path::Path::new(&old_flag_path).exists())
@@ -989,8 +1015,17 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let home = get_home_dir();
-            let desktop_log_path = home
-                .join("Library/Logs/OpenViking/openviking-desktop.log")
+            let app_data_dir = app.path().app_data_dir().expect("no app data dir");
+            // macOS: ~/Library/Logs/OpenViking (backward compat)
+            // Windows: %APPDATA%/com.openviking.desktop/logs
+            // Linux: ~/.local/share/com.openviking.desktop/logs
+            let log_dir = if cfg!(target_os = "macos") {
+                home.join("Library/Logs/OpenViking")
+            } else {
+                app_data_dir.join("logs")
+            };
+            let desktop_log_path = log_dir
+                .join("openviking-desktop.log")
                 .to_string_lossy()
                 .to_string();
             if let Some(parent) = std::path::Path::new(&desktop_log_path).parent() {
@@ -1039,7 +1074,6 @@ pub fn run() {
             }.to_string_lossy().to_string();
             log::info!("uv path: {}", uv_path);
 
-            let app_data_dir = app.path().app_data_dir().expect("no app data dir");
             let venv_python_path = python_env::get_venv_python_path(&app_data_dir);
             let venv_path = if venv_python_path.exists() {
                 venv_python_path.to_string_lossy().to_string()
@@ -1048,8 +1082,8 @@ pub fn run() {
             };
             log::info!("venv path: {}", if venv_path.is_empty() { "(not installed)" } else { &venv_path });
 
-            let server_log_path = home
-                .join("Library/Logs/OpenViking/openviking.log")
+            let server_log_path = log_dir
+                .join("openviking.log")
                 .to_string_lossy()
                 .to_string();
 
@@ -1071,7 +1105,7 @@ pub fn run() {
             let expanded_workspace_path = expand_tilde(&workspace_path);
 
             let cached_version = {
-                let ver_file = app_data_dir.join("openviking_version");
+                let ver_file = app_data_dir.join(OPENVIKING_VERSION_FILENAME);
                 if ver_file.exists() {
                     std::fs::read_to_string(&ver_file).unwrap_or_default()
                 } else {
@@ -1108,7 +1142,7 @@ pub fn run() {
                     let default_config = serde_json::json!({
                         "server": { "host": "127.0.0.1", "port": 1933, "cors_origins": ["*"] },
                         "bot": { "gateway": { "port": 18790 } },
-                        "storage": { "workspace": std::path::Path::new(&get_default_workspace_path()).join("data").to_string_lossy().to_string(), "vectordb": { "backend": "local" }, "agfs": { "backend": "local" } },
+                        "storage": { "workspace": std::path::Path::new(&get_default_workspace_path()).join(DATA_SUBDIR).to_string_lossy().to_string(), "vectordb": { "backend": "local" }, "agfs": { "backend": "local" } },
                         "embedding": {
                             "dense": { "provider": "local", "model": "bge-small-zh-v1.5-f16", "model_path": model_path },
                             "max_concurrent": 10, "max_retries": 3,
@@ -1181,6 +1215,7 @@ pub fn run() {
             read_config,
             write_config,
             get_workspace,
+            get_workspace_data_path,
             get_default_workspace,
             set_workspace,
             read_server_log,
