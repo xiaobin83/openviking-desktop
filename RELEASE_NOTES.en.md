@@ -1,11 +1,11 @@
-# OpenViking Desktop v0.1.0 — Pre-release (macOS aarch64)
+# OpenViking Desktop v0.1.1 — Pre-release (macOS + Windows)
 
 OpenViking Desktop is a local desktop management console for the OpenViking AI knowledge management system. **Its goal is to dramatically lower the barrier to using OpenViking** — no command-line interaction required for installation, startup, configuration, or monitoring.
 
 ## System Requirements
 
-- macOS 14.0 (Sonoma) or later
-- Apple Silicon (M1/M2/M3/M4)
+- macOS 14.0 (Sonoma) or later, Apple Silicon (M1/M2/M3/M4)
+- Windows 10 or later, x86_64
 - Internet connection required on first use (automatically downloads Python runtime)
 
 ## Key Features
@@ -21,7 +21,7 @@ OpenViking Desktop is a local desktop management console for the OpenViking AI k
 
 ## Installation
 
-1. Download `OpenViking_0.1.0_aarch64.dmg`
+1. Download the installer for your platform (macOS: `OpenViking_0.1.1_aarch64.dmg`, Windows: `OpenViking_0.1.1_x64.msi`)
 2. Drag `OpenViking.app` into the `Applications` folder
 3. On first launch, the setup wizard will appear automatically — follow the prompts to initialize the Python environment (internet required)
 4. Once complete, start the service and you're ready to go
@@ -34,4 +34,6 @@ OpenViking Desktop is a local desktop management console for the OpenViking AI k
   ├── ov.conf    # Configuration file (auto-generated)
   └── data/      # Knowledge base data, vector database, etc.
   ```
-- To re-run the wizard, delete `~/.openviking/.onboarded` (your Python environment and working directory data will be preserved)
+- To re-run the wizard, delete the first-run flag file (your Python environment and working directory data will be preserved):
+  - **macOS / Linux**: Delete `~/.openviking/.onboarded` (or `~/Library/Application Support/com.openviking.desktop/.onboarded`)
+  - **Windows**: Delete `%APPDATA%\com.openviking.desktop\.onboarded` (or `%USERPROFILE%\.openviking\.onboarded`)

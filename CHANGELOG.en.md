@@ -62,3 +62,17 @@
 - **`download-llama-cpp.sh`**: New script for downloading prebuilt `llama-cpp-python` wheels.
 - **`.gitignore`**: Added `.whl`, `.deb`, and cargo-xwin cache rules.
 - **Debug logging**: Curl-style request logging added to `fetchApi`.
+
+### 🛠️ Platform Path Fixes
+
+- **Log path**: Non-macOS platforms now use `app_data_dir/logs` (replacing hardcoded `~/Library/Logs/OpenViking`).
+- **FS scope**: Added `$APPDATA/com.openviking.desktop/**` to `capabilities/default.json`, covering `app_data_dir` on Windows, Linux, and macOS.
+- **First-run flag migration**: `.onboarded` flag migrated from `~/.openviking/` to `app_data_dir/` (Windows: `%APPDATA%/com.openviking.desktop/`), with backward-compat fallback to the old location.
+- **Default config path**: `ov.conf` fallback path migrated from `home_dir` to `app_data_dir`.
+- **Vector DB path**: `resolve_vectordb_path` and `get_workspace_data_path` empty-workspace fallbacks now use platform-aware `get_default_workspace_path()`.
+- **Frontend defaults**: `config-fields.ts` and wizard workspace fallback now detect Windows platform (`%USERPROFILE%\OpenViking\data`).
+- **Wheel path**: `Resources/wheels` uses explicit `Path::join("Resources").join("wheels")` construction.
+
+### 🖱️ Dashboard UX Improvements
+
+- **Lock controls during install**: Disable "Start Service" button (muted + `cursor-not-allowed`) and lock Config tab during Python environment installation/upgrade. Auto-switch to Overview tab if already on Config when installation starts.
