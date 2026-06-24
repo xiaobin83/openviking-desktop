@@ -62,3 +62,17 @@
 - **`download-llama-cpp.sh`**：新增 `llama-cpp-python` 预编译 wheel 下载脚本。
 - **`.gitignore`**：新增 `.whl`、`.deb`、cargo-xwin 缓存规则。
 - **Debug 日志**：`fetchApi` 新增 curl 风格请求日志。
+
+### 🛠️ 平台路径修复
+
+- **日志路径**：非 macOS 平台改用 `app_data_dir/logs`（替代硬编码的 `~/Library/Logs/OpenViking`）。
+- **FS scope 权限**：`capabilities/default.json` 新增 `$APPDATA/com.openviking.desktop/**`，覆盖 Windows/Linux/macOS 的 `app_data_dir` 路径。
+- **首次运行标记迁移**：`.onboarded` 标记从 `~/.openviking/` 迁移到 `app_data_dir/`（Windows: `%APPDATA%/com.openviking.desktop/`），保留旧路径向后兼容。
+- **默认配置路径**：`ov.conf` 回退路径从 `home_dir` 迁移到 `app_data_dir`。
+- **向量数据库路径**：`resolve_vectordb_path` 和 `get_workspace_data_path` 空工作区回退使用平台感知的 `get_default_workspace_path()`。
+- **前端默认值**：`config-fields.ts` 和安装向导工作区回退路径添加 Windows 平台检测（`%USERPROFILE%\OpenViking\data`）。
+- **Wheel 路径**：`Resources/wheels` 使用显式 `Path::join("Resources").join("wheels")` 构建。
+
+### 🖱️ 仪表盘 UX 改进
+
+- **安装中锁定控件**：Python 环境安装/升级期间，禁用"启动服务"按钮（灰色 + `cursor-not-allowed`），禁止切换到配置选项卡，若已在配置页则自动切回概览。
