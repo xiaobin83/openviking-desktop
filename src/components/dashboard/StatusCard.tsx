@@ -9,6 +9,7 @@ interface StatusCardProps {
   onShowLog: () => void;
   onShowAppLog?: () => void;
   onRebuildEmbedding?: () => void;
+  disabled?: boolean;
 }
 
 const STATUS_CONFIG: Record<string, { labelKey: string; dot: string; ring: string; badge: string; pulseColor: string }> = {
@@ -49,7 +50,7 @@ const STATUS_CONFIG: Record<string, { labelKey: string; dot: string; ring: strin
   },
 };
 
-export default function StatusCard({ status, version, errorMessage, onToggle, onConsole, onShowLog, onShowAppLog, onRebuildEmbedding }: StatusCardProps) {
+export default function StatusCard({ status, version, errorMessage, onToggle, onConsole, onShowLog, onShowAppLog, onRebuildEmbedding, disabled = false }: StatusCardProps) {
   const { t } = useTranslation();
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.stopped;
   const isStopped = status === 'stopped' || status === 'error' || status === 'timeout';
@@ -112,6 +113,7 @@ export default function StatusCard({ status, version, errorMessage, onToggle, on
         <div className="flex items-center gap-3">
           <button
             onClick={onToggle}
+            disabled={disabled}
             className={`relative overflow-hidden rounded-xl px-5 py-2 text-sm font-medium transition-all duration-300 ${
               isStopped
                 ? 'bg-aurora-500/15 text-aurora-400 hover:bg-aurora-500/25 hover:shadow-lg hover:shadow-aurora-500/10'
