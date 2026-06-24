@@ -115,9 +115,11 @@ export default function StatusCard({ status, version, errorMessage, onToggle, on
             onClick={onToggle}
             disabled={disabled}
             className={`relative overflow-hidden rounded-xl px-5 py-2 text-sm font-medium transition-all duration-300 ${
-              isStopped
-                ? 'bg-aurora-500/15 text-aurora-400 hover:bg-aurora-500/25 hover:shadow-lg hover:shadow-aurora-500/10'
-                : 'bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:shadow-lg hover:shadow-red-500/10'
+              disabled
+                ? 'bg-gray-500/10 text-gray-500 cursor-not-allowed'
+                : isStopped
+                  ? 'bg-aurora-500/15 text-aurora-400 hover:bg-aurora-500/25 hover:shadow-lg hover:shadow-aurora-500/10'
+                  : 'bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:shadow-lg hover:shadow-red-500/10'
             }`}
           >
             <span className="relative z-10">{isStopped ? t('status.start') : t('status.stop')}</span>
