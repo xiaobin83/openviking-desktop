@@ -26,7 +26,7 @@
           "path": "$HOME/Library/Logs/OpenViking/**"
         },
         {
-          "path": "$HOME/Library/Application Support/OpenViking/**"
+          "path": "$APPDATA/com.openviking.desktop/**"
         }
       ]
     },
