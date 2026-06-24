@@ -15,6 +15,7 @@ function App() {
   const [ready, setReady] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [appVersion, setAppVersion] = useState('');
+  const [isPythonInstalling, setIsPythonInstalling] = useState(false);
 
   useEffect(() => {
     invoke<string>('get_app_version')
@@ -62,6 +63,13 @@ function App() {
     i18n.changeLanguage(next);
     localStorage.setItem('lang', next);
   };
+
+  // Force-switch to overview tab when Python installation starts
+  useEffect(() => {
+    if (isPythonInstalling && activeTab === 'config') {
+      setActiveTab('overview');
+    }
+  }, [isPythonInstalling, activeTab]);
 
   // Show wizard if onboarding needed
   if (needsOnboarding) {
@@ -117,10 +125,13 @@ function App() {
                 <button
                   key={key}
                   onClick={() => setActiveTab(key)}
+                  disabled={key === 'config' && isPythonInstalling}
                   className={`relative rounded-md px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
-                    activeTab === key
-                      ? 'bg-aurora-500/15 text-aurora-400 shadow-sm'
-                      : 'text-text-muted hover:text-text-secondary'
+                    key === 'config' && isPythonInstalling
+                      ? 'text-text-muted/40 cursor-not-allowed'
+                      : activeTab === key
+                        ? 'bg-aurora-500/15 text-aurora-400 shadow-sm'
+                        : 'text-text-muted hover:text-text-secondary'
                   }`}
                 >
                   {activeTab === key && (
@@ -143,7 +154,7 @@ function App() {
 
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-7xl p-6">
-          {activeTab === 'overview' ? <Dashboard /> : <ConfigPage />}
+          {activeTab === 'overview' ? <Dashboard onInstallingChange={setIsPythonInstalling} /> : <ConfigPage />}
         </div>
       </main>
     </div>

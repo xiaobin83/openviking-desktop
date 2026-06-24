@@ -10,7 +10,7 @@ import StatusCard from './StatusCard';
 import StatsGrid from './StatsGrid';
 import PythonEnvCard from './PythonEnvCard';
 
-export default function Dashboard() {
+export default function Dashboard({ onInstallingChange }: { onInstallingChange?: (installing: boolean) => void }) {
   const { t } = useTranslation();
   const [serverStatus, setServerStatus] = useState<string>('stopped');
   const [version, setVersion] = useState<string>('');
@@ -22,6 +22,10 @@ export default function Dashboard() {
   const [toast, setToast] = useState('');
   const [playgroundOpening, setPlaygroundOpening] = useState(false);
   const [isPythonInstalling, setIsPythonInstalling] = useState(false);
+
+  useEffect(() => {
+    onInstallingChange?.(isPythonInstalling);
+  }, [isPythonInstalling, onInstallingChange]);
 
   useEffect(() => {
     const unlisten = listen<string>('server-status-changed', (event) => {
