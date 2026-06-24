@@ -47,15 +47,14 @@ export default function WorkspaceStep({ formData, onChange }: WorkspaceStepProps
     try {
       await invoke('set_workspace', { path });
     } catch {}
-    // 从 Rust 读取展开后的绝对路径（expand_tilde 在 Rust 侧处理）
-    let expanded = path;
+    // Get properly joined data path from Rust (uses Path::join, not string concat)
     try {
-      expanded = await invoke<string>('get_workspace');
+      const dataPath = await invoke<string>('get_workspace_data_path');
+      onChange({
+        ...formData,
+        storage: { workspace: dataPath, vectordb: { backend: 'local' }, agfs: { backend: 'local' } },
+      });
     } catch {}
-    onChange({
-      ...formData,
-      storage: { workspace: expanded.replace(/\/+$/, '') + '/data', vectordb: { backend: 'local' }, agfs: { backend: 'local' } },
-    });
   };
 
   const handleChange = (value: string) => {

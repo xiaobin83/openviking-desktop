@@ -7,8 +7,8 @@ use tauri::{AppHandle, Emitter, Manager};
 #[cfg(unix)]
 use std::os::unix::process::CommandExt;
 
-/// Kill a child process and its entire process group (Unix) or just the child (non-Unix).
-/// On Unix, this uses process groups to ensure subprocesses are also terminated.
+/// Kill a child process and its entire process group (Unix) or process tree (Windows).
+/// On Unix, uses process-group kill; on Windows, uses taskkill /T for tree-kill.
 #[cfg(unix)]
 pub fn kill_child(child: &mut std::process::Child) {
     let pid = child.id();
@@ -18,7 +18,19 @@ pub fn kill_child(child: &mut std::process::Child) {
     let _ = child.wait();
 }
 
-#[cfg(not(unix))]
+#[cfg(target_os = "windows")]
+pub fn kill_child(child: &mut std::process::Child) {
+    let pid = child.id();
+    // /T kills the process tree (parent + all descendants)
+    let _ = std::process::Command::new("taskkill")
+        .args(["/F", "/T", "/PID", &pid.to_string()])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+    let _ = child.wait();
+}
+
+#[cfg(not(any(unix, target_os = "windows")))]
 pub fn kill_child(child: &mut std::process::Child) {
     let _ = child.kill();
     let _ = child.wait();
