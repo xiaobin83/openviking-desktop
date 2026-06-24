@@ -132,6 +132,7 @@
   "status.start": "启动服务",
   "status.stop": "停止服务",
   "status.rebuild_embedding": "重建 Embedding",
+    "status.console": "控制台",
   "status.show_server_log": "OpenViking 日志",
   "status.show_app_log": "应用日志",
 

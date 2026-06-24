@@ -4,6 +4,9 @@ use std::process::{Command, Stdio};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
 #[cfg(unix)]
 use std::os::unix::process::CommandExt;
 
@@ -22,11 +25,15 @@ pub fn kill_child(child: &mut std::process::Child) {
 pub fn kill_child(child: &mut std::process::Child) {
     let pid = child.id();
     // /T kills the process tree (parent + all descendants)
-    let _ = std::process::Command::new("taskkill")
-        .args(["/F", "/T", "/PID", &pid.to_string()])
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status();
+    let mut cmd = std::process::Command::new("taskkill");
+    cmd.args(["/F", "/T", "/PID", &pid.to_string()]);
+    cmd.stdout(Stdio::null());
+    cmd.stderr(Stdio::null());
+    #[cfg(target_os = "windows")]
+    {
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    let _ = cmd.status();
     let _ = child.wait();
 }
 
@@ -124,7 +131,11 @@ fn spawn_openviking_process(
         }
     }
 
-    // 5. spawn
+    // 5. spawn (suppress console window on Windows)
+    #[cfg(target_os = "windows")]
+    {
+        command.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
     let child = command.spawn().map_err(|e| format!("启动服务失败: {}", e))?;
 
     log::info!(
@@ -444,9 +455,10 @@ pub async fn stop_server(state: &ServerState, app: &AppHandle) -> Result<String,
 pub fn cleanup_port(port: u16) {
     #[cfg(target_os = "windows")]
     {
-        let output = std::process::Command::new("netstat")
-            .args(["-ano"])
-            .output();
+        let mut netstat_cmd = std::process::Command::new("netstat");
+        netstat_cmd.args(["-ano"]);
+        netstat_cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        let output = netstat_cmd.output();
         if let Ok(out) = output {
             let stdout = String::from_utf8_lossy(&out.stdout);
             let port_marker = format!(":{}", port);
@@ -456,9 +468,10 @@ pub fn cleanup_port(port: u16) {
                     if let Some(&pid_str) = parts.last() {
                         if let Ok(pid) = pid_str.parse::<u32>() {
                             log::info!("cleanup_port {}: killing PID {}", port, pid);
-                            let _ = std::process::Command::new("taskkill")
-                                .args(["/F", "/PID", &pid.to_string()])
-                                .output();
+                            let mut kill_cmd = std::process::Command::new("taskkill");
+                            kill_cmd.args(["/F", "/PID", &pid.to_string()]);
+                            kill_cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+                            let _ = kill_cmd.output();
                         }
                     }
                 }

@@ -4,6 +4,9 @@ use std::sync::Mutex;
 use tauri::{Emitter, Manager};
 use tauri_plugin_opener::OpenerExt;
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
 mod process;
 mod python_env;
 mod tray;
@@ -432,13 +435,17 @@ async fn check_openviking_state(
         let uv_path = &state.uv_path;
         let venv_python = state.venv_path.lock().unwrap().clone();
         let cached_ver = state.openviking_version.lock().unwrap().clone();
+        // Scope uv's Python installation to avoid os error 448 on Windows
+        let app_data_dir = app.path().app_data_dir().unwrap_or_default();
+        let python_install_dir = app_data_dir.join("uv-python");
+        let python_install_dir_str = python_install_dir.to_string_lossy().to_string();
         log::info!(
             "check_openviking_state: installed=true, venv={}, cached_version={}",
             venv_python,
             if cached_ver.is_empty() { "(none)" } else { &cached_ver }
         );
 
-        match python_env::pip_show_openviking(uv_path, &venv_python) {
+        match python_env::pip_show_openviking(uv_path, &venv_python, &python_install_dir_str) {
             Ok(Some(v)) => {
                 log::info!("check_openviking_state: version={}", v);
                 current_version = Some(v.clone());
@@ -474,11 +481,15 @@ async fn check_openviking_state(
 
     let has_local_embed = if installed {
         let venv_python = state.venv_path.lock().unwrap().clone();
-        std::process::Command::new(&venv_python)
-            .args(["-c", "import llama_cpp"])
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status()
+        let mut cmd = std::process::Command::new(&venv_python);
+        cmd.args(["-c", "import llama_cpp"]);
+        cmd.stdout(std::process::Stdio::null());
+        cmd.stderr(std::process::Stdio::null());
+        #[cfg(target_os = "windows")]
+        {
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+        cmd.status()
             .map(|s| s.success())
             .unwrap_or(false)
     } else {
@@ -519,10 +530,13 @@ async fn check_latest_version(current_version: String) -> Result<LatestVersionRe
 }
 
 fn get_python_version_internal(venv_python: &str) -> Option<String> {
-    let output = std::process::Command::new(venv_python)
-        .args(["--version"])
-        .output()
-        .ok()?;
+    let mut cmd = std::process::Command::new(venv_python);
+    cmd.args(["--version"]);
+    #[cfg(target_os = "windows")]
+    {
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    let output = cmd.output().ok()?;
     let text = String::from_utf8_lossy(&output.stdout).to_string();
     text.strip_prefix("Python ").map(|s| s.trim().to_string())
 }
@@ -551,8 +565,17 @@ async fn install_openviking(
     }
 
     let result: Result<String, String> = (async {
-        if !python_env::python_is_installed(&uv_path, &version) {
-            python_env::python_install(&app, &uv_path, &version)?;
+        let app_data_dir = get_app_data_dir(&app)?;
+        std::fs::create_dir_all(&app_data_dir)
+            .map_err(|e| format!("创建应用数据目录失败: {}", e))?;
+        // Scope uv's Python installation to app data dir to avoid
+        // os error 448 (untrusted mount point) on Windows
+        let python_install_dir = app_data_dir.join("uv-python");
+        let python_install_dir_str = python_install_dir.to_string_lossy().to_string();
+        std::fs::create_dir_all(&python_install_dir).ok();
+
+        if !python_env::python_is_installed(&uv_path, &version, &python_install_dir_str) {
+            python_env::python_install(&app, &uv_path, &version, &python_install_dir_str)?;
         } else {
             let _ = app.emit(
                 "python-task-progress",
@@ -565,16 +588,13 @@ async fn install_openviking(
             );
         }
 
-        let app_data_dir = get_app_data_dir(&app)?;
         let venv_target = app_data_dir.join("python");
         let venv_target_str = venv_target.to_string_lossy().to_string();
         if venv_target.exists() {
             std::fs::remove_dir_all(&venv_target)
                 .map_err(|e| format!("删除旧 venv 失败: {}", e))?;
         }
-        std::fs::create_dir_all(&app_data_dir)
-            .map_err(|e| format!("创建应用数据目录失败: {}", e))?;
-        python_env::venv_create(&app, &uv_path, &version, &venv_target_str)?;
+        python_env::venv_create(&app, &uv_path, &version, &venv_target_str, &python_install_dir_str)?;
 
         let venv_python = venv_target
             .join(if cfg!(target_os = "windows") {
@@ -597,6 +617,7 @@ async fn install_openviking(
             openviking_version.as_deref(),
             wheel.as_deref(),
             local_embed,
+            &python_install_dir_str,
         )?;
 
         Ok(venv_python_str)
@@ -654,8 +675,12 @@ async fn upgrade_openviking(
     let local_embed = local_embed.unwrap_or(false);
 
     let result = {
+        let app_data_dir = get_app_data_dir(&app)?;
+        let python_install_dir = app_data_dir.join("uv-python");
+        let python_install_dir_str = python_install_dir.to_string_lossy().to_string();
+        std::fs::create_dir_all(&python_install_dir).ok();
         let wheel = resolve_llama_cpp_wheel_inner(&app);
-        python_env::pip_install_openviking_with_wheel(&app, &uv_path, &venv_python, true, None, wheel.as_deref(), local_embed)
+        python_env::pip_install_openviking_with_wheel(&app, &uv_path, &venv_python, true, None, wheel.as_deref(), local_embed, &python_install_dir_str)
     };
 
     UPGRADING.store(false, std::sync::atomic::Ordering::Release);
@@ -706,12 +731,15 @@ async fn upgrade_python(
 
     let uv_path = state.uv_path.clone();
     let app_data_dir = get_app_data_dir(&app)?;
+    let python_install_dir = app_data_dir.join("uv-python");
+    let python_install_dir_str = python_install_dir.to_string_lossy().to_string();
+    std::fs::create_dir_all(&python_install_dir).ok();
 
     let _ = crate::process::stop_server(&state, &app).await;
 
     let result: Result<String, String> = (async {
-        if !python_env::python_is_installed(&uv_path, &version) {
-            python_env::python_install(&app, &uv_path, &version)?;
+        if !python_env::python_is_installed(&uv_path, &version, &python_install_dir_str) {
+            python_env::python_install(&app, &uv_path, &version, &python_install_dir_str)?;
         }
 
         let venv_target = app_data_dir.join("python");
@@ -719,7 +747,7 @@ async fn upgrade_python(
             std::fs::remove_dir_all(&venv_target)
                 .map_err(|e| format!("删除旧 venv 失败: {}", e))?;
         }
-        python_env::venv_create(&app, &uv_path, &version, &venv_target.to_string_lossy())?;
+        python_env::venv_create(&app, &uv_path, &version, &venv_target.to_string_lossy(), &python_install_dir_str)?;
 
         let venv_python = venv_target
             .join(if cfg!(target_os = "windows") {
@@ -735,7 +763,7 @@ async fn upgrade_python(
         let venv_python_str = venv_python.to_string_lossy().to_string();
         let local_embed = local_embed.unwrap_or(false);
         let wheel = resolve_llama_cpp_wheel_inner(&app);
-        python_env::pip_install_openviking_with_wheel(&app, &uv_path, &venv_python_str, false, None, wheel.as_deref(), local_embed)?;
+        python_env::pip_install_openviking_with_wheel(&app, &uv_path, &venv_python_str, false, None, wheel.as_deref(), local_embed, &python_install_dir_str)?;
 
         Ok(venv_python_str)
     })
@@ -773,8 +801,11 @@ async fn upgrade_python(
 }
 
 #[tauri::command]
-async fn get_python_versions(state: tauri::State<'_, ServerState>) -> Result<Vec<String>, String> {
-    python_env::python_list_all(&state.uv_path)
+async fn get_python_versions(app: tauri::AppHandle, state: tauri::State<'_, ServerState>) -> Result<Vec<String>, String> {
+    let app_data_dir = app.path().app_data_dir().unwrap_or_default();
+    let python_install_dir = app_data_dir.join("uv-python");
+    let python_install_dir_str = python_install_dir.to_string_lossy().to_string();
+    python_env::python_list_all(&state.uv_path, &python_install_dir_str)
 }
 
 #[tauri::command]
@@ -1178,7 +1209,9 @@ pub fn run() {
                 let auto_start_handle = app.handle().clone();
                 let venv_path_val = state.venv_path.lock().unwrap().clone();
                 let should_auto_start = if !venv_path_val.is_empty() {
-                    python_env::pip_show_openviking(&state.uv_path, &venv_path_val)
+                    let python_install_dir = app_data_dir.join("uv-python");
+                    let python_install_dir_str = python_install_dir.to_string_lossy().to_string();
+                    python_env::pip_show_openviking(&state.uv_path, &venv_path_val, &python_install_dir_str)
                         .ok()
                         .flatten()
                         .is_some()

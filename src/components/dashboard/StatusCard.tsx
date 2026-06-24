@@ -81,7 +81,7 @@ export default function StatusCard({ status, version, errorMessage, onToggle, on
                   onClick={onConsole}
                   className="rounded-lg border border-border-subtle bg-surface-elevated px-3 py-1 text-xs font-medium text-text-secondary transition-colors hover:border-border-active hover:text-text-primary"
                 >
-                  Console
+                  {t('status.console')}
                 </button>
               )}
               <button

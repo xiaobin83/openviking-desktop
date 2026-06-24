@@ -132,6 +132,7 @@
   "status.start": "Start Service",
   "status.stop": "Stop Service",
   "status.rebuild_embedding": "Rebuild Embedding",
+    "status.console": "Console",
   "status.show_server_log": "OpenViking Log",
   "status.show_app_log": "App Log",
 
