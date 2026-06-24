@@ -3,6 +3,9 @@ import type { OvConfig } from './types';
 export type FieldType = 'string' | 'number' | 'boolean' | 'select' | 'password';
 export type TabId = 'basic' | 'ai' | 'storage' | 'advanced' | 'feishu';
 
+const isWindows = typeof navigator !== 'undefined' && /Win/i.test(navigator.platform);
+const DEFAULT_DATA_DIR = isWindows ? '%USERPROFILE%\\OpenViking\\data' : '~/.openviking/data';
+
 export interface ConfigField {
   path: string;
   label: string;
@@ -63,8 +66,8 @@ const FIELDS: ConfigField[] = [
     description: 'basic.storage_path_desc',
     type: 'string',
     tab: 'basic',
-    defaultValue: '~/.openviking/data',
-    placeholder: '~/.openviking/data',
+    defaultValue: DEFAULT_DATA_DIR,
+    placeholder: DEFAULT_DATA_DIR,
   },
   {
     path: 'log.level',
@@ -460,7 +463,7 @@ export function getFieldByPath(path: string): ConfigField | undefined {
 const defaultConfigObj = {
   server: { host: '127.0.0.1', port: 1933 },
   storage: {
-    workspace: '~/.openviking/data',
+    workspace: DEFAULT_DATA_DIR,
     vectordb: { name: 'context', backend: 'local' },
     agfs: { backend: 'local' },
   },
