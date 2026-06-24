@@ -30,7 +30,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["dmg", "msi", "nsis"],
+    "targets": ["dmg", "msi"],
     "icon": [
       "icons/icon.ico",
       "icons/icon.icns"
@@ -46,9 +46,6 @@
     "windows": {
       "wix": {
         "language": "zh-CN"
-      },
-      "nsis": {
-        "installMode": "currentUser"
       }
     }
   }
