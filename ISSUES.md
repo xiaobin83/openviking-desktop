@@ -1,6 +1,6 @@
 # Known Issues
 
-> 分支: `feat/windows-support` | 更新时间: 2026-06-24 | 已修复 7/7 (不含 Build)
+> 分支: `main` | 更新时间: 2026-06-25 | 已修复 8/9
 
 ## Path
 
@@ -41,8 +41,13 @@
 ### 清理
 - 移除死代码常量 `DEFAULT_OV_CONF_PATH` 和 `DEFAULT_UNIX_WORKSPACE`
 
+## Runtime
+
+### ❌ [UNFIXED] 首次启动服务可能因等待时间不足导致失败
+- **状态**: 未修复 — 首次启动服务时，Python 环境初始化或依赖加载可能耗时较长，超过当前等待超时，导致启动失败
+- **缓解**: 再次点击"启动服务"按钮重试即可；通常第二次启动时环境已就绪，可以正常启动
+
 ## Build
 
-### macOS 交叉编译未验证
-- **问题**: 当前构建仅在 WSL→Windows 交叉编译，macOS 构建未测试
-- **修复**: 在 macOS 上运行 `pnpm tauri build` 验证 DMG 打包
+### ✅ [FIXED] macOS 交叉编译未验证
+- **状态**: 已验证 — macOS 和 Windows 平台均可正常打包构建
