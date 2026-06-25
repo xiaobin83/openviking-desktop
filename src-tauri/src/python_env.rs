@@ -160,7 +160,7 @@ pub fn pip_install_openviking_with_wheel(
                     uv_path,
                     &["pip", "install", "--python", venv_python, "--no-deps", wheel_path],
                     "installing_wheel",
-                    "安装 llama-cpp-python (预编译)...",
+                    "python.installing_wheel",
                     python_install_dir,
                 )?;
             } else {
@@ -174,14 +174,19 @@ pub fn pip_install_openviking_with_wheel(
         Some(v) => format!("openviking{}=={}", extras, v),
         None => format!("openviking{}", extras),
     };
-    let label = if local_embed { "OpenViking (含本地 Embedding)" } else { "OpenViking" };
+    let msg_key = if upgrade {
+        if local_embed { "python.upgrading_local" } else { "python.upgrading" }
+    } else {
+        if local_embed { "python.installing_local" } else { "python.installing" }
+    };
+    let step_key = if upgrade { "upgrading" } else { "installing" };
     if upgrade {
         run_uv(
             app,
             uv_path,
             &["pip", "install", "--python", venv_python, "--upgrade", &package],
-            "upgrading",
-            &format!("升级 {}...", label),
+            step_key,
+            msg_key,
             python_install_dir,
         )
     } else {
@@ -189,8 +194,8 @@ pub fn pip_install_openviking_with_wheel(
             app,
             uv_path,
             &["pip", "install", "--python", venv_python, &package],
-            "installing",
-            &format!("安装 {}...", label),
+            step_key,
+            msg_key,
             python_install_dir,
         )
     }

@@ -271,7 +271,7 @@ export default function InstallStep({ isInstalled, onInstalled, onInstallComplet
                   )}
                 </div>
                 <span className={`text-sm ${isActive ? 'text-aurora-400 font-medium' : isPast ? 'text-green-400' : 'text-text-muted'}`}>
-                  {isActive && statusMessage ? statusMessage : (stepDef.labelKey.startsWith('python.') ? t(stepDef.labelKey, { version: selectedPythonVersion }) : stepDef.labelKey)}
+                  {isActive && statusMessage ? t(statusMessage, { version: selectedPythonVersion }) : (stepDef.labelKey.startsWith('python.') ? t(stepDef.labelKey, { version: selectedPythonVersion }) : stepDef.labelKey)}
                 </span>
                 {isActive && downloadProgress && (
                   <span className="text-xs text-aurora-400 font-mono ml-auto">{downloadProgress}</span>
