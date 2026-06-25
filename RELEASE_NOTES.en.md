@@ -26,6 +26,21 @@ OpenViking Desktop is a local desktop management console for the OpenViking AI k
 3. On first launch, the setup wizard will appear automatically — follow the prompts to initialize the Python environment (internet required)
 4. Once complete, start the service and you're ready to go
 
+### macOS First Launch
+
+The current build uses ad-hoc signing and is not notarized by Apple. macOS Gatekeeper will block the first launch. Follow these steps:
+
+1. Double-click `OpenViking.app` → "Cannot be opened" dialog → click **"Done"**
+2. Open **System Settings → Privacy & Security** → scroll to the bottom → click **"Open Anyway"**
+3. Double-click `OpenViking.app` again → click **"Open"**
+
+> If the "Open Anyway" button does not appear, run in Terminal:
+> ```
+> xattr -cr /Applications/OpenViking.app
+> ```
+
+> Enterprise-managed Macs may prohibit unsigned applications entirely. Contact your IT administrator in such cases.
+
 ## Bug Fixes
 
 - **Eager workspace directory creation**: Fixed an issue in the first-run wizard where typing each character in the "Working Directory" step created a directory. The directory is now only created when clicking "Next" if the path does not exist, with path validity validation.
