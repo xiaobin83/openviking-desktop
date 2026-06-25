@@ -123,14 +123,7 @@ pub fn expand_tilde(path: &str) -> String {
 }
 
 pub fn get_default_workspace_path() -> String {
-    #[cfg(target_os = "windows")]
-    {
-        get_home_dir().join(DEFAULT_WORKSPACE_NAME).to_string_lossy().to_string()
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        DEFAULT_UNIX_WORKSPACE.to_string()
-    }
+    get_home_dir().join(DEFAULT_WORKSPACE_NAME).to_string_lossy().to_string()
 }
 
 #[tauri::command]
