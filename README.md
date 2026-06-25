@@ -121,7 +121,9 @@ src-tauri/src/
 scripts/
 ├── download-uv.sh                # uv 二进制下载脚本
 ├── download-gguf.sh              # 本地 Embedding 模型下载脚本
-└── reset-first-run.sh            # 重置首次运行状态（用于测试）
+├── reset-first-run.sh            # 重置首次运行状态（用于测试）
+├── allow-gatekeeper.sh           # 放行 macOS Gatekeeper 拦截
+└── reset-gatekeeper.sh           # 重置 Gatekeeper 放行状态
 
 resources/
 └── uv/                           # 各平台 uv 二进制（gitignored）
@@ -137,6 +139,28 @@ resources/
 - 工作目录结构：`<工作目录>/` 下包含 `ov.conf`（配置文件）和 `data/`（知识库数据）
 - 首次运行由 `~/.openviking/.onboarded` 标志控制，删除该文件可重新运行向导
 - 构建产物格式：macOS DMG（目标平台 aarch64），发布说明见 [RELEASE_NOTES.md](RELEASE_NOTES.md)
+
+## macOS Gatekeeper 放行
+
+当前版本使用临时签名（adhoc），未经过 Apple 公证，首次打开会被 Gatekeeper 拦截。
+
+### 一键放行
+
+在终端执行以下命令，自动清除 app 及内部可执行文件的检疫标记：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/xiaobin83/openviking-desktop/main/scripts/allow-gatekeeper.sh | bash
+```
+
+执行后即可直接双击打开 OpenViking.app。
+
+### 恢复拦截（用于测试）
+
+如需重新测试 Gatekeeper 拦截效果：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/xiaobin83/openviking-desktop/main/scripts/reset-gatekeeper.sh | bash
+```
 
 ## 分支策略
 
