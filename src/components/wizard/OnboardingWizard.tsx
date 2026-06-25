@@ -5,7 +5,7 @@ import { getDefaultConfigJson } from '../../lib/config-fields';
 import type { OvConfig, PythonEnvState } from '../../lib/types';
 import WizardProgress from './WizardProgress';
 import InstallStep from './InstallStep';
-import WorkspaceStep from './WorkspaceStep';
+import WorkspaceStep, { type WorkspaceStepHandle } from './WorkspaceStep';
 import EmbeddingStep from './EmbeddingStep';
 import VlmStep from './VlmStep';
 import ApiKeyStep from './ApiKeyStep';
@@ -25,6 +25,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   const [error, setError] = useState('');
   const [isInstalling, setIsInstalling] = useState(false);
   const [hasLocalEmbed, setHasLocalEmbed] = useState(false);
+  const workspaceRef = useRef<WorkspaceStepHandle>(null);
 
   // Initialize form data from default config
   const [formData, setFormData] = useState<Partial<OvConfig>>(() => {
@@ -92,13 +93,24 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     }
   }, [stepIndex]);
 
-  const handleNext = useCallback(() => {
+  const handleNext = useCallback(async () => {
     if (!isStepValid()) return;
+
+    // For workspace step, persist draft path (create dirs) before proceeding
+    if (stepIndex === 1) {
+      try {
+        await workspaceRef.current?.persist();
+      } catch {
+        setError(t('wizard.workspace_invalid'));
+        return;
+      }
+    }
+
     if (isLastStep && !isApiKeyValid) return;
     if (!isLastStep) {
       setStepIndex((s) => s + 1);
     }
-  }, [isLastStep, isApiKeyValid, isStepValid]);
+  }, [isLastStep, isApiKeyValid, isStepValid, stepIndex, t]);
 
   const handleComplete = async () => {
     setError('');
@@ -135,6 +147,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
       case 1:
         return (
           <WorkspaceStep
+            ref={workspaceRef}
             formData={formData}
             onChange={(data) => setFormData({ ...formData, ...data })}
           />
