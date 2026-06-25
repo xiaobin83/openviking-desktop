@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -12,7 +12,13 @@ interface WorkspaceStepProps {
   onChange: (data: Partial<OvConfig>) => void;
 }
 
-export default function WorkspaceStep({ formData, onChange }: WorkspaceStepProps) {
+export interface WorkspaceStepHandle {
+  /** Persist the current draft path (create dirs + update formData). Returns data path. */
+  persist: () => Promise<string>;
+}
+
+const WorkspaceStep = forwardRef<WorkspaceStepHandle, WorkspaceStepProps>(
+  function WorkspaceStep({ formData, onChange }, ref) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState('');
   const initialised = useRef(false);
@@ -25,11 +31,11 @@ export default function WorkspaceStep({ formData, onChange }: WorkspaceStepProps
     invoke<string>('get_default_workspace')
       .then((defaultPath) => {
         setDraft(defaultPath);
-        persistWorkspace(defaultPath);
+        persistWorkspace(defaultPath).catch(() => {});
       })
       .catch(() => {
         setDraft(FALLBACK_WORKSPACE);
-        persistWorkspace(FALLBACK_WORKSPACE);
+        persistWorkspace(FALLBACK_WORKSPACE).catch(() => {});
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -42,14 +48,15 @@ export default function WorkspaceStep({ formData, onChange }: WorkspaceStepProps
     });
     if (selected) {
       setDraft(selected);
-      persistWorkspace(selected);
+      try {
+        await persistWorkspace(selected);
+      } catch {}
     }
   };
 
   const persistWorkspace = async (path: string) => {
-    try {
-      await invoke('set_workspace', { path });
-    } catch {}
+    // Propagate set_workspace errors so caller can detect invalid paths
+    await invoke('set_workspace', { path });
     // Get properly joined data path from Rust (uses Path::join, not string concat)
     try {
       const dataPath = await invoke<string>('get_workspace_data_path');
@@ -60,12 +67,19 @@ export default function WorkspaceStep({ formData, onChange }: WorkspaceStepProps
     } catch {}
   };
 
+  // Expose persist() so parent (OnboardingWizard) can trigger directory creation on "Next"
+  useImperativeHandle(ref, () => ({
+    persist: async () => {
+      if (!draft.trim()) throw new Error('Workspace path is empty');
+      await persistWorkspace(draft);
+      const dataPath = await invoke<string>('get_workspace_data_path');
+      return dataPath;
+    },
+  }), [draft, formData]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleChange = (value: string) => {
     setDraft(value);
-    // Don't persist empty input — validation in OnboardingWizard will block Next
-    if (value.trim()) {
-      persistWorkspace(value);
-    }
+    // Do NOT persist on every keystroke — defer to parent's "Next" handler
   };
 
   const fieldStyle = "w-full rounded-lg bg-surface-hover border border-border-subtle px-3 py-2.5 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-aurora-400/50 transition-colors";
@@ -96,4 +110,6 @@ export default function WorkspaceStep({ formData, onChange }: WorkspaceStepProps
       </div>
     </div>
   );
-}
+});
+
+export default WorkspaceStep;
