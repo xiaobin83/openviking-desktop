@@ -9,21 +9,25 @@
 
 set -e
 
-ONBOARDED_FLAG="$HOME/.openviking/.onboarded"
+# Legacy flag/config locations (before Tauri app_data_dir migration)
+ONBOARDED_FLAG_LEGACY="$HOME/.openviking/.onboarded"
 OV_CONF="$HOME/.openviking/ov.conf"
 
 # app data dir per Tauri conventions (bundle id com.openviking.desktop)
 case "$(uname -s)" in
     Darwin)
-        VENV_DIR="$HOME/Library/Application Support/com.openviking.desktop/python"
+        APPDATA_DIR="$HOME/Library/Application Support/com.openviking.desktop"
+        VENV_DIR="$APPDATA_DIR/python"
         UV_PYTHON_DIR="$HOME/.local/share/uv/python"
         ;;
     Linux)
-        VENV_DIR="$HOME/.local/share/com.openviking.desktop/python"
+        APPDATA_DIR="$HOME/.local/share/com.openviking.desktop"
+        VENV_DIR="$APPDATA_DIR/python"
         UV_PYTHON_DIR="$HOME/.local/share/uv/python"
         ;;
     MINGW*|MSYS*|CYGWIN*)
-        VENV_DIR="$APPDATA/com.openviking.desktop/python"
+        APPDATA_DIR="$APPDATA/com.openviking.desktop"
+        VENV_DIR="$APPDATA_DIR/python"
         UV_PYTHON_DIR="$APPDATA/uv/data/python"
         ;;
     *)
@@ -31,6 +35,8 @@ case "$(uname -s)" in
         exit 1
         ;;
 esac
+
+ONBOARDED_FLAG="$APPDATA_DIR/.onboarded"
 
 show_help() {
     cat <<EOF
@@ -59,11 +65,16 @@ echo ""
 
 # --- always: remove flag and config ---
 
-if [ -f "$ONBOARDED_FLAG" ]; then
-    rm "$ONBOARDED_FLAG"
-    echo "  ✓ Removed $ONBOARDED_FLAG"
-else
-    echo "  - $ONBOARDED_FLAG (not found)"
+removed_any_flag=false
+for flag_path in "$ONBOARDED_FLAG" "$ONBOARDED_FLAG_LEGACY"; do
+    if [ -f "$flag_path" ]; then
+        rm "$flag_path"
+        echo "  ✓ Removed $flag_path"
+        removed_any_flag=true
+    fi
+done
+if [ "$removed_any_flag" = false ]; then
+    echo "  - .onboarded flag (not found in app data or legacy location)"
 fi
 
 if [ -f "$OV_CONF" ]; then
