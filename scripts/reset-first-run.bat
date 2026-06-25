@@ -9,11 +9,15 @@ REM   reset-first-run.bat --help          Show this help
 
 setlocal enabledelayedexpansion
 
-set ONBOARDED_FLAG=%USERPROFILE%\.openviking\.onboarded
-set OV_CONF=%USERPROFILE%\.openviking\ov.conf
+REM Legacy flag/config locations (before Tauri app_data_dir migration)
+set ONBOARDED_FLAG_LEGACY=%USERPROFILE%\.openviking\.onboarded
+set OV_CONF_LEGACY=%USERPROFILE%\.openviking\ov.conf
 
 REM app data dir per Tauri conventions (bundle id com.openviking.desktop)
-set VENV_DIR=%APPDATA%\com.openviking.desktop\python
+set APPDATA_DIR=%APPDATA%\com.openviking.desktop
+set ONBOARDED_FLAG=%APPDATA_DIR%\.onboarded
+set OV_CONF=%APPDATA_DIR%\ov.conf
+set VENV_DIR=%APPDATA_DIR%\python
 set UV_PYTHON_DIR=%APPDATA%\uv\data\python
 
 set MODE=reset
@@ -28,13 +32,19 @@ echo.
 
 REM --- always: remove flag and config ---
 
-if exist "%ONBOARDED_FLAG%" (
-    del "%ONBOARDED_FLAG%"
-    echo   [OK] Removed %ONBOARDED_FLAG%
-) else (
-    echo   - %ONBOARDED_FLAG% [not found]
+set REMOVED_FLAG=0
+for %%F in ("%ONBOARDED_FLAG%" "%ONBOARDED_FLAG_LEGACY%") do (
+    if exist %%F (
+        del %%F
+        echo   [OK] Removed %%F
+        set REMOVED_FLAG=1
+    )
+)
+if %REMOVED_FLAG%==0 (
+    echo   - .onboarded flag [not found in app data or legacy location]
 )
 
+REM Remove ov.conf from app data dir
 if exist "%OV_CONF%" (
     del "%OV_CONF%"
     echo   [OK] Removed %OV_CONF%
@@ -44,6 +54,16 @@ if exist "%OV_CONF%" (
     )
 ) else (
     echo   - %OV_CONF% [not found]
+)
+
+REM Also clean up legacy ov.conf location
+if exist "%OV_CONF_LEGACY%" (
+    del "%OV_CONF_LEGACY%"
+    echo   [OK] Removed %OV_CONF_LEGACY%
+    if exist "%OV_CONF_LEGACY%.bak" (
+        del "%OV_CONF_LEGACY%.bak"
+        echo   [OK] Removed %OV_CONF_LEGACY%.bak
+    )
 )
 
 REM --- full/purge: delete venv and uv-downloaded Python binaries ---
