@@ -216,6 +216,7 @@
 "wizard.workspace_hint": "选择 OpenViking 的工作目录，该目录下将包含 data/（知识库数据）和 ov.conf（配置文件）。",
 "wizard.workspace_label": "工作目录",
 "wizard.workspace_placeholder": "例如: /home/user/.openviking (Unix) 或 C:\\Users\\user\\OpenViking (Windows)",
+"wizard.workspace_invalid": "工作目录路径无效，请检查后重试。",
 "wizard.next": "下一步",
   "wizard.back": "上一步",
   "wizard.complete": "完成设置",

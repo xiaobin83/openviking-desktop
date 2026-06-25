@@ -216,6 +216,7 @@
 "wizard.workspace_hint": "Choose the OpenViking working directory. It will contain data/ (knowledge base) and ov.conf (configuration).",
 "wizard.workspace_label": "Working Directory",
 "wizard.workspace_placeholder": "e.g. /home/user/.openviking (Unix) or C:\\Users\\user\\OpenViking (Windows)",
+"wizard.workspace_invalid": "Invalid workspace path. Please check the path and try again.",
 "wizard.next": "Next",
   "wizard.back": "Back",
   "wizard.complete": "Complete Setup",
