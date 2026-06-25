@@ -26,6 +26,10 @@ OpenViking Desktop is a local desktop management console for the OpenViking AI k
 3. On first launch, the setup wizard will appear automatically — follow the prompts to initialize the Python environment (internet required)
 4. Once complete, start the service and you're ready to go
 
+## Bug Fixes
+
+- **Eager workspace directory creation**: Fixed an issue in the first-run wizard where typing each character in the "Working Directory" step created a directory. The directory is now only created when clicking "Next" if the path does not exist, with path validity validation.
+
 ## Notes
 
 - After completing the wizard, your working directory will have the following structure:
@@ -35,5 +39,7 @@ OpenViking Desktop is a local desktop management console for the OpenViking AI k
   └── data/      # Knowledge base data, vector database, etc.
   ```
 - To re-run the wizard, delete the first-run flag file (your Python environment and working directory data will be preserved):
-  - **macOS / Linux**: Delete `~/.openviking/.onboarded` (or `~/Library/Application Support/com.openviking.desktop/.onboarded`)
-  - **Windows**: Delete `%APPDATA%\com.openviking.desktop\.onboarded` (or `%USERPROFILE%\.openviking\.onboarded`)
+  - **macOS**: Delete `~/Library/Application Support/com.openviking.desktop/.onboarded`
+  - **Linux**: Delete `~/.local/share/com.openviking.desktop/.onboarded`
+  - **Windows**: Delete `%APPDATA%\com.openviking.desktop\.onboarded`
+  - Tip: You can also run `bash scripts/reset-first-run.sh` to reset automatically
