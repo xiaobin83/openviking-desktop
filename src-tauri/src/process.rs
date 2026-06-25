@@ -49,11 +49,6 @@ fn set_error(state: &ServerState, app: &AppHandle, msg: &str) {
     let _ = app.emit("server-status-changed", "error");
 }
 
-pub async fn spawn_server_with_app_handle(app: &AppHandle) -> Result<String, String> {
-    let state = app.state::<ServerState>();
-    spawn_server(&state, app).await
-}
-
 /// 构建并启动 openviking 服务子进程（公共函数）。
 /// - 从 ov.conf 同步端口配置到 state
 /// - 构建 Python 命令行，设置虚拟环境变量

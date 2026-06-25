@@ -24,10 +24,18 @@ const WorkspaceStep = forwardRef<WorkspaceStepHandle, WorkspaceStepProps>(
   const initialised = useRef(false);
 
   // 组件挂载时获取平台默认工作目录并同步到 Rust ServerState，
-  // 确保后续 write_config 写入正确的 ov.conf 路径
+  // 确保后续 write_config 写入正确的 ov.conf 路径。
   useEffect(() => {
     if (initialised.current) return;
     initialised.current = true;
+    const preFilledWorkspace = formData.storage?.workspace;
+    if (preFilledWorkspace?.trim()) {
+      // formData.storage.workspace is the data path (<workspace>/data);
+      // the input field expects the working directory (parent of data).
+      const workingDir = preFilledWorkspace.replace(/\/data\/?$/, '');
+      setDraft(workingDir);
+      return;
+    }
     invoke<string>('get_default_workspace')
       .then((defaultPath) => {
         setDraft(defaultPath);

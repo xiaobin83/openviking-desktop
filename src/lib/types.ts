@@ -152,3 +152,19 @@ export interface PythonTaskProgress {
   done: boolean;
   log_line: string;
 }
+
+export type DetectionPhase = 'IDLE' | 'DETECTING' | 'SERVER_RUNNING' | 'SHOW_DIALOG' | 'FRESH_WIZARD' | 'ERROR';
+
+export interface ExistingConfigInfo {
+  path: string;
+  workspace: string;
+  config: OvConfig;
+}
+
+export interface DetectionResult {
+  phase: DetectionPhase;
+  serverRunning: boolean;
+  healthOk: boolean;
+  existingConfig: ExistingConfigInfo | null;
+  error: string | null;
+}

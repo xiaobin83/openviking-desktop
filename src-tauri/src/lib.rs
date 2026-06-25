@@ -76,10 +76,10 @@ impl Drop for ServerState {
             if let Some(ref mut child) = *guard {
                 log::info!("ServerState::drop: killing openviking-server");
                 crate::process::kill_child(child);
+                drop(guard);
+                crate::process::cleanup_port(server_port);
+                crate::process::cleanup_port(bot_port);
             }
-            drop(guard);
-            crate::process::cleanup_port(server_port);
-            crate::process::cleanup_port(bot_port);
         }
     }
 }
@@ -168,6 +168,15 @@ fn get_onboarded_flag_path(state: &ServerState) -> String {
 async fn read_config(state: tauri::State<'_, ServerState>) -> Result<String, String> {
     let ov_conf_path = get_ov_conf_path(&state);
     match std::fs::read_to_string(&ov_conf_path) {
+        Ok(content) => Ok(content),
+        Err(e) => Err(format!("读取配置失败: {}", e)),
+    }
+}
+
+#[tauri::command]
+async fn read_config_at(path: String) -> Result<String, String> {
+    let expanded = crate::expand_tilde(&path);
+    match std::fs::read_to_string(&expanded) {
         Ok(content) => Ok(content),
         Err(e) => Err(format!("读取配置失败: {}", e)),
     }
@@ -1019,6 +1028,11 @@ async fn is_onboarded(state: tauri::State<'_, ServerState>) -> Result<bool, Stri
 }
 
 #[tauri::command]
+fn exit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
+#[tauri::command]
 fn get_app_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
@@ -1204,24 +1218,8 @@ pub fn run() {
                     }
                 }
 
-                // 自动启动服务（仅在 openviking 已安装时）
-                let auto_start_handle = app.handle().clone();
-                let venv_path_val = state.venv_path.lock().unwrap().clone();
-                let should_auto_start = if !venv_path_val.is_empty() {
-                    let python_install_dir = app_data_dir.join("uv-python");
-                    let python_install_dir_str = python_install_dir.to_string_lossy().to_string();
-                    python_env::pip_show_openviking(&state.uv_path, &venv_path_val, &python_install_dir_str)
-                        .ok()
-                        .flatten()
-                        .is_some()
-                } else {
-                    false
-                };
-                if should_auto_start {
-                    tauri::async_runtime::spawn(async move {
-                        let _ = process::spawn_server_with_app_handle(&auto_start_handle).await;
-                    });
-                }
+                // 端口配置已从 ov.conf 读取，服务启动由前端在
+                // 端口冲突检查完成后通过 start_server 命令触发。
 
                 // 启动时自动显示仪表盘窗口
                 if let Some(window) = app.get_webview_window("dashboard") {
@@ -1245,6 +1243,7 @@ pub fn run() {
             start_server,
             stop_server,
             read_config,
+            read_config_at,
             write_config,
             get_workspace,
             get_workspace_data_path,
@@ -1274,6 +1273,7 @@ pub fn run() {
             get_app_version,
             is_onboarded,
             mark_onboarded,
+            exit_app,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
@@ -1302,11 +1302,11 @@ pub fn run() {
                         if let Some(ref mut c) = *child_opt {
                             log::info!("Killing openviking-server on RunEvent::Exit");
                             crate::process::kill_child(c);
+                            *child_opt = None;
+                            drop(child_opt);
+                            crate::process::cleanup_port(server_port);
+                            crate::process::cleanup_port(bot_port);
                         }
-                        *child_opt = None;
-                        drop(child_opt);
-                        crate::process::cleanup_port(server_port);
-                        crate::process::cleanup_port(bot_port);
                     }
                 }
                 _ => {}

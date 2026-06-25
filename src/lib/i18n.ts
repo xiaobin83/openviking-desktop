@@ -13,6 +13,8 @@ i18n.use(initReactI18next).init({
   lng: savedLang,
   fallbackLng: 'en',
   interpolation: {
+    prefix: '{',
+    suffix: '}',
     escapeValue: false,
   },
 });

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { getDefaultConfigJson } from '../../lib/config-fields';
+import { readExistingConfig, prefillFormData, mergeWizardChanges } from '../../lib/detection';
 import type { OvConfig, PythonEnvState } from '../../lib/types';
 import WizardProgress from './WizardProgress';
 import InstallStep from './InstallStep';
@@ -26,11 +27,11 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   const [isInstalling, setIsInstalling] = useState(false);
   const [hasLocalEmbed, setHasLocalEmbed] = useState(false);
   const workspaceRef = useRef<WorkspaceStepHandle>(null);
+  const originalConfigRef = useRef<OvConfig | null>(null);
 
   // Initialize form data from default config
   const [formData, setFormData] = useState<Partial<OvConfig>>(() => {
     const defaults = JSON.parse(getDefaultConfigJson()) as OvConfig;
-    // Ensure local embedding defaults for the wizard
     if (!defaults.embedding?.dense) defaults.embedding = { ...defaults.embedding, dense: {} };
     return defaults;
   });
@@ -65,6 +66,10 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     }
   }, [checkingInstall, isInstalled, stepIndex]);
 
+  const handleInstallComplete = useCallback(() => {
+    setStepIndex(1);
+  }, []);
+
   const isLastStep = stepIndex === TOTAL_STEPS - 1;
   const isApiKeyValid = (formData.server?.root_api_key || '') !== '';
 
@@ -77,7 +82,6 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
 
   const isWorkspaceValid = useCallback(() => {
     const ws = formData.storage?.workspace;
-    // Workspace must be non-empty; Rust backend always returns proper Path::join
     return !!ws;
   }, [formData.storage?.workspace]);
 
@@ -96,10 +100,24 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   const handleNext = useCallback(async () => {
     if (!isStepValid()) return;
 
-    // For workspace step, persist draft path (create dirs) before proceeding
+    // For workspace step, persist draft path (create dirs) before proceeding.
+    // If ov.conf already exists in the workspace, pre-fill remaining wizard fields.
     if (stepIndex === 1) {
       try {
-        await workspaceRef.current?.persist();
+        const dataPath = await workspaceRef.current?.persist();
+        if (dataPath) {
+          const workspacePath = dataPath.replace(/\/data\/?$/, '');
+          const ovConfPath = `${workspacePath}/ov.conf`;
+          const configInfo = await readExistingConfig(ovConfPath);
+          if (configInfo) {
+            // Save full config for merge-on-complete (preserve non-wizard fields)
+            originalConfigRef.current = configInfo.config;
+            const preFilled = prefillFormData(configInfo.config, formData);
+            setFormData((prev) => ({ ...prev, ...preFilled }));
+          } else {
+            originalConfigRef.current = null;
+          }
+        }
       } catch {
         setError(t('wizard.workspace_invalid'));
         return;
@@ -110,12 +128,22 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     if (!isLastStep) {
       setStepIndex((s) => s + 1);
     }
-  }, [isLastStep, isApiKeyValid, isStepValid, stepIndex, t]);
+  }, [isLastStep, isApiKeyValid, isStepValid, stepIndex, t, formData]);
 
   const handleComplete = async () => {
     setError('');
     try {
-      await invoke('write_config', { config: JSON.stringify(formData, null, 2) });
+      let configToWrite: string;
+      if (originalConfigRef.current) {
+        configToWrite = JSON.stringify(
+          mergeWizardChanges(originalConfigRef.current, formData),
+          null,
+          2,
+        );
+      } else {
+        configToWrite = JSON.stringify(formData, null, 2);
+      }
+      await invoke('write_config', { config: configToWrite });
       await invoke('mark_onboarded');
       onComplete();
     } catch (err) {
@@ -140,7 +168,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
           <InstallStep
             isInstalled={isInstalled}
             onInstalled={() => setIsInstalled(true)}
-            onInstallComplete={() => setStepIndex(1)}
+            onInstallComplete={handleInstallComplete}
             onInstallingChange={setIsInstalling}
           />
         );
@@ -179,7 +207,6 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     }
   };
 
-  // Show nav for all steps after initial mount; step 0 only gets nav when installed
   const showNav = stepIndex > 0 || (stepIndex === 0 && isInstalled);
 
   return (

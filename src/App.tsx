@@ -3,9 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getDefaultConfigJson } from './lib/config-fields';
+import { findConflictingPorts, findForeignOccupiedPorts } from './lib/detection';
 import OnboardingWizard from './components/wizard/OnboardingWizard';
 import Dashboard from './components/dashboard/Dashboard';
 import ConfigPage from './components/config/ConfigPage';
+import PortConflictDialog from './components/PortConflictDialog';
 
 type Tab = 'overview' | 'config';
 
@@ -16,6 +18,8 @@ function App() {
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [appVersion, setAppVersion] = useState('');
   const [isPythonInstalling, setIsPythonInstalling] = useState(false);
+  const [portConflicts, setPortConflicts] = useState<number[] | null>(null);
+  const [foreignPortConflicts, setForeignPortConflicts] = useState<number[] | null>(null);
 
   useEffect(() => {
     invoke<string>('get_app_version')
@@ -35,11 +39,48 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (needsOnboarding) return;
-    invoke<string>('read_config').catch(() => {
-      invoke('write_config', { config: getDefaultConfigJson() }).catch(() => {});
-    });
-  }, [needsOnboarding]);
+    if (!ready || needsOnboarding) return;
+    invoke<string>('read_config')
+      .then(async (configStr) => {
+        try {
+          const config = JSON.parse(configStr);
+          const serverPort = config.server?.port ?? 1933;
+          const botPort = config.bot?.gateway?.port ?? 18790;
+          const conflicts = await findConflictingPorts(serverPort, botPort);
+          if (conflicts.length > 0) {
+            setPortConflicts(conflicts);
+            return;
+          }
+
+          const foreignPorts = await findForeignOccupiedPorts(serverPort);
+          if (foreignPorts.length > 0) {
+            setForeignPortConflicts(foreignPorts);
+            return;
+          }
+
+          await invoke('start_server').catch(() => {});
+        } catch {
+          // Config parse failed — write default config as fallback
+          await invoke('write_config', { config: getDefaultConfigJson() }).catch(() => {});
+        }
+      })
+      .catch(() => {
+        invoke('write_config', { config: getDefaultConfigJson() }).catch(() => {});
+      });
+  }, [ready, needsOnboarding]);
+
+  const handleClearPorts = async () => {
+    if (!portConflicts) return;
+    for (const port of portConflicts) {
+      await invoke('kill_port_process', { port }).catch(() => {});
+    }
+    setPortConflicts(null);
+    await invoke('start_server').catch(() => {});
+  };
+
+  const handleExit = async () => {
+    await invoke('exit_app');
+  };
 
   useEffect(() => {
     const updateTitle = async () => {
@@ -92,7 +133,22 @@ function App() {
   ];
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-surface">
+    <>
+      {portConflicts && portConflicts.length > 0 && (
+        <PortConflictDialog
+          ports={portConflicts}
+          onClear={handleClearPorts}
+          onExit={handleExit}
+        />
+      )}
+      {foreignPortConflicts && foreignPortConflicts.length > 0 && (
+        <PortConflictDialog
+          ports={foreignPortConflicts}
+          variant="foreign"
+          onExit={handleExit}
+        />
+      )}
+      <div className="h-screen flex flex-col overflow-hidden bg-surface">
       <header className="flex-shrink-0 border-b border-border-subtle bg-surface-elevated/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
@@ -158,6 +214,7 @@ function App() {
         </div>
       </main>
     </div>
+    </>
   );
 }
 
