@@ -132,7 +132,7 @@ resources/
 ## 开发说明
 
 - 仪表盘通过 Tauri `invoke` 命令控制 Python 后端进程
-- 服务运行后通过 REST API（`/health`、`/api/v1/console/dashboard/summary`、`/api/v1/stats/memories`）轮询数据
+- 服务运行后通过 REST API（`/health`、`/api/v1/console/dashboard/summary`）轮询数据
 - 配置模块使用声明式字段定义（`config-fields.ts`），通过 `ConfigField` / `ConfigGroup` 组件统一渲染
 - 国际化使用 `i18next`，语言包位于 `src/locales/`，当前支持中文和英文
 - 主题色系：深色背景（`surface`）+ 青蓝点缀（`aurora`）+ 辅助蓝（`nordic`）

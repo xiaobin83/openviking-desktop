@@ -1,9 +1,13 @@
 import type { HealthResponse, DashboardSummary, MemoryStats, ApiResponse } from './types';
 
-const BASE_URL = 'http://127.0.0.1:1933';
+let baseUrl = 'http://127.0.0.1:1933';
 let rootApiKey = '';
 let account = 'default';
 let user = 'default';
+
+export function setBasePort(port: number) {
+  baseUrl = `http://127.0.0.1:${port}`;
+}
 
 export function setRootApiKey(key: string) {
   rootApiKey = key;
@@ -29,7 +33,7 @@ function authHeaders(): Record<string, string> {
 }
 
 async function fetchApi<T>(path: string): Promise<T> {
-  const url = `${BASE_URL}${path}`;
+  const url = `${baseUrl}${path}`;
   const headers = authHeaders();
   const headerArgs = Object.entries(headers)
     .map(([k, v]) => `-H "${k}: ${v}"`)
@@ -59,7 +63,7 @@ async function fetchApi<T>(path: string): Promise<T> {
 }
 
 export async function checkHealth(): Promise<HealthResponse> {
-  const url = `${BASE_URL}/health`;
+  const url = `${baseUrl}/health`;
   console.log(`[API] Request: GET ${url}`);
 
   const startTime = performance.now();

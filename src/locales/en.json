@@ -242,5 +242,15 @@
   "wizard.use_existing_config": "Use Existing Config",
   "wizard.start_fresh": "Start Fresh",
   "wizard.config_load_error": "Could not load existing config. Starting fresh wizard.",
-  "wizard.server_check_failed": "Could not verify OpenViking server. Starting fresh wizard."
+  "wizard.server_check_failed": "Could not verify OpenViking server. Starting fresh wizard.",
+  "wizard.port_conflict_title": "Port Already in Use",
+  "wizard.port_conflict_desc": "Port {ports} is occupied by another application. Please enter new port numbers and re-check.",
+  "wizard.port_server": "Server Port (server.port)",
+  "wizard.port_bot_gateway": "Bot Gateway Port (bot.gateway.port)",
+  "wizard.port_recheck": "Re-check",
+  "wizard.port_checking": "Checking port availability...",
+  "wizard.port_check_failed": "Port check failed, please retry",
+  "wizard.port_invalid": "Invalid {field} (enter an integer between 1-65535)",
+  "wizard.port_duplicate": "The two ports cannot be the same",
+  "wizard.port_unchanged": "Port unchanged, please enter new port numbers"
 }

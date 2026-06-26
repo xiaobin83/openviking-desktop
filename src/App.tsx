@@ -4,10 +4,13 @@ import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getDefaultConfigJson } from './lib/config-fields';
 import { findConflictingPorts, findForeignOccupiedPorts } from './lib/detection';
+import { setBasePort } from './lib/api';
+import type { OvConfig } from './lib/types';
 import OnboardingWizard from './components/wizard/OnboardingWizard';
 import Dashboard from './components/dashboard/Dashboard';
 import ConfigPage from './components/config/ConfigPage';
 import PortConflictDialog from './components/PortConflictDialog';
+import PortStep from './components/wizard/PortStep';
 
 type Tab = 'overview' | 'config';
 
@@ -20,6 +23,7 @@ function App() {
   const [isPythonInstalling, setIsPythonInstalling] = useState(false);
   const [portConflicts, setPortConflicts] = useState<number[] | null>(null);
   const [foreignPortConflicts, setForeignPortConflicts] = useState<number[] | null>(null);
+  const [currentConfig, setCurrentConfig] = useState<Partial<OvConfig> | null>(null);
 
   useEffect(() => {
     invoke<string>('get_app_version')
@@ -44,6 +48,7 @@ function App() {
       .then(async (configStr) => {
         try {
           const config = JSON.parse(configStr);
+          setCurrentConfig(config);
           const serverPort = config.server?.port ?? 1933;
           const botPort = config.bot?.gateway?.port ?? 18790;
           const conflicts = await findConflictingPorts(serverPort, botPort);
@@ -52,7 +57,7 @@ function App() {
             return;
           }
 
-          const foreignPorts = await findForeignOccupiedPorts(serverPort);
+          const foreignPorts = await findForeignOccupiedPorts(serverPort, botPort);
           if (foreignPorts.length > 0) {
             setForeignPortConflicts(foreignPorts);
             return;
@@ -80,6 +85,16 @@ function App() {
 
   const handleExit = async () => {
     await invoke('exit_app');
+  };
+
+  const handleForeignPortsResolved = async (updatedFormData: Partial<OvConfig>) => {
+    const configStr = JSON.stringify(updatedFormData, null, 2);
+    const serverPort = updatedFormData.server?.port ?? 1933;
+    await invoke('write_config', { config: configStr }).catch(() => {});
+    setBasePort(serverPort);
+    setForeignPortConflicts(null);
+    setCurrentConfig(updatedFormData);
+    await invoke('start_server').catch(() => {});
   };
 
   useEffect(() => {
@@ -141,11 +156,12 @@ function App() {
           onExit={handleExit}
         />
       )}
-      {foreignPortConflicts && foreignPortConflicts.length > 0 && (
-        <PortConflictDialog
-          ports={foreignPortConflicts}
-          variant="foreign"
+      {foreignPortConflicts && foreignPortConflicts.length > 0 && currentConfig && (
+        <PortStep
+          formData={currentConfig}
+          onPortsResolved={handleForeignPortsResolved}
           onExit={handleExit}
+          mode="dialog"
         />
       )}
       <div className="h-screen flex flex-col overflow-hidden bg-surface">

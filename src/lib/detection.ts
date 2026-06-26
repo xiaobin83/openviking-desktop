@@ -186,22 +186,47 @@ export async function findConflictingPorts(serverPort: number, botPort: number):
 }
 
 /**
- * Detect server ports occupied by a non-OpenViking process
+ * Detect ports occupied by a non-OpenViking process
  * (TCP port in use, but the /health endpoint is unreachable).
+ *
+ * For the server port: checks TCP occupancy then probes /health.
+ * For the bot gateway port: since it has no /health endpoint,
+ * TCP occupancy alone flags it as foreign — but only when the
+ * server port is NOT confirmed as OpenViking (to avoid false
+ * positives when OpenViking is already running on both ports).
+ *
+ * @param serverPort - TCP port to scan for the main server.
+ * @param botPort    - Optional bot gateway port to also scan.
+ * @param timeoutMs  - Max wait for /health response (default 3000 ms).
+ * @returns Ports occupied by non-OpenViking foreign processes.
  */
 export async function findForeignOccupiedPorts(
   serverPort: number,
+  botPort?: number,
   timeoutMs: number = 3000,
 ): Promise<number[]> {
   const foreignPorts: number[] = [];
-  const isOccupied = await invoke<boolean>('check_port', { port: serverPort });
-  if (!isOccupied) {
-    return foreignPorts;
+  let serverIsOurs = false;
+
+  const serverOccupied = await invoke<boolean>('check_port', { port: serverPort });
+  if (serverOccupied) {
+    const healthOk = await checkHealthEndpoint(serverPort, timeoutMs);
+    if (!healthOk) {
+      foreignPorts.push(serverPort);
+    } else {
+      serverIsOurs = true;
+    }
   }
-  const healthOk = await checkHealthEndpoint(serverPort, timeoutMs);
-  if (!healthOk) {
-    foreignPorts.push(serverPort);
+
+  // Bot gateway has no /health endpoint — TCP occupancy alone flags it.
+  // Skip when server is confirmed as OpenViking (both ports are likely ours).
+  if (!serverIsOurs && botPort !== undefined && botPort !== serverPort) {
+    const botOccupied = await invoke<boolean>('check_port', { port: botPort });
+    if (botOccupied) {
+      foreignPorts.push(botPort);
+    }
   }
+
   return foreignPorts;
 }
 

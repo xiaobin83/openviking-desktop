@@ -10,12 +10,13 @@ import WorkspaceStep, { type WorkspaceStepHandle } from './WorkspaceStep';
 import EmbeddingStep from './EmbeddingStep';
 import VlmStep from './VlmStep';
 import ApiKeyStep from './ApiKeyStep';
+import PortStep from './PortStep';
 
 interface OnboardingWizardProps {
   onComplete: () => void;
 }
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 const PREDEFINED_VLM_PROVIDERS = ['volcengine', 'openai', 'openai-codex', 'deepseek', 'kimi', 'glm'];
 
 export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
@@ -124,24 +125,26 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
       }
     }
 
+    if (stepIndex === 4 && !isApiKeyValid) return;
     if (isLastStep && !isApiKeyValid) return;
     if (!isLastStep) {
       setStepIndex((s) => s + 1);
     }
   }, [isLastStep, isApiKeyValid, isStepValid, stepIndex, t, formData]);
 
-  const handleComplete = async () => {
+  const handleComplete = async (overrideFormData?: Partial<OvConfig>) => {
     setError('');
+    const data = overrideFormData ?? formData;
     try {
       let configToWrite: string;
       if (originalConfigRef.current) {
         configToWrite = JSON.stringify(
-          mergeWizardChanges(originalConfigRef.current, formData),
+          mergeWizardChanges(originalConfigRef.current, data),
           null,
           2,
         );
       } else {
-        configToWrite = JSON.stringify(formData, null, 2);
+        configToWrite = JSON.stringify(data, null, 2);
       }
       await invoke('write_config', { config: configToWrite });
       await invoke('mark_onboarded');
@@ -149,6 +152,11 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     } catch (err) {
       setError(String(err));
     }
+  };
+
+  const handlePortsResolved = (updatedFormData: Partial<OvConfig>) => {
+    setFormData(updatedFormData);
+    handleComplete(updatedFormData);
   };
 
   if (checkingInstall) {
@@ -202,12 +210,20 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
             onChange={(data) => setFormData({ ...formData, ...data })}
           />
         );
+      case 5:
+        return (
+          <PortStep
+            formData={formData}
+            onPortsResolved={handlePortsResolved}
+            onExit={onComplete}
+          />
+        );
       default:
         return null;
     }
   };
 
-  const showNav = stepIndex > 0 || (stepIndex === 0 && isInstalled);
+  const showNav = (stepIndex > 0 || (stepIndex === 0 && isInstalled)) && stepIndex !== 5;
 
   return (
     <div className="h-screen flex flex-col bg-surface">
@@ -248,7 +264,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
               <div className="ml-auto">
                 {isLastStep ? (
                   <button
-                    onClick={handleComplete}
+                    onClick={() => handleComplete()}
                     disabled={!isApiKeyValid}
                     className="rounded-xl bg-aurora-500 hover:bg-aurora-600 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2.5 text-sm font-semibold text-white transition-colors"
                   >
@@ -271,7 +287,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
             <div className="mt-4 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 text-sm text-red-400 flex items-center justify-between">
               <span>{error}</span>
               <button
-                onClick={handleComplete}
+                onClick={() => handleComplete()}
                 className="px-3 py-1 bg-red-500/20 text-red-400 rounded-md hover:bg-red-500/30 transition-colors text-xs font-medium"
               >
                 {t('embedding_modal.retry')}

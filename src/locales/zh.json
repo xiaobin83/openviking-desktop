@@ -242,5 +242,15 @@
   "wizard.use_existing_config": "使用已有配置",
   "wizard.start_fresh": "重新开始",
   "wizard.config_load_error": "无法加载已有配置，将重新开始配置。",
-  "wizard.server_check_failed": "无法验证 OpenViking 服务，将重新开始配置。"
+  "wizard.server_check_failed": "无法验证 OpenViking 服务，将重新开始配置。",
+  "wizard.port_conflict_title": "端口已被占用",
+  "wizard.port_conflict_desc": "端口 {ports} 被其他应用程序占用，请输入新的端口号后重新检测。",
+  "wizard.port_server": "服务端口 (server.port)",
+  "wizard.port_bot_gateway": "Bot 网关端口 (bot.gateway.port)",
+  "wizard.port_recheck": "重新检测",
+  "wizard.port_checking": "正在检测端口占用...",
+  "wizard.port_check_failed": "端口检测失败，请重试",
+  "wizard.port_invalid": "{field} 无效（请输入 1-65535 之间的整数）",
+  "wizard.port_duplicate": "两个端口不能相同",
+  "wizard.port_unchanged": "端口号未变更，请输入新端口号"
 }

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
-import { checkHealth, getDashboardSummary, setRootApiKey, getRootApiKey, setTenant } from '../../lib/api';
+import { checkHealth, getDashboardSummary, setRootApiKey, setBasePort, getRootApiKey, setTenant } from '../../lib/api';
 import type { OvConfig } from '../../lib/types';
 import type { DashboardSummary, PythonEnvState } from '../../lib/types';
 import StatusCard from './StatusCard';
@@ -87,6 +87,7 @@ export default function Dashboard({ onInstallingChange }: { onInstallingChange?:
         if (config.server?.root_api_key) {
           setRootApiKey(config.server.root_api_key);
         }
+        setBasePort(config.server?.port ?? 1933);
         setTenant(
           config.server?.account ?? 'default',
           config.server?.default_user ?? 'default',
