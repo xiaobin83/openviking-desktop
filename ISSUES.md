@@ -1,6 +1,6 @@
 # Known Issues
 
-> 分支: `main` | 更新时间: 2026-06-25 | 已修复 8/9
+> 分支: `main` | 更新时间: 2026-06-26 | 已修复 8/10
 
 ## Path
 
@@ -29,6 +29,14 @@
   - Windows: `%USERPROFILE%\OpenViking\data`
   - macOS/Linux: `~/.openviking/data`
 - **同样修复**: `WorkspaceStep.tsx` catch 回退路径（`WorkspaceStep.tsx:7-8, 31-32`）
+
+### ❌ [UNFIXED] 向导"发现已有配置"功能在 Windows 上失效
+
+- **状态**: 未修复 — `OnboardingWizard.tsx:110` 的 `dataPath.replace(/\/data\/?$/, '')` 仅匹配正斜杠
+- **根因**: Windows 上 `get_workspace_data_path` 返回反斜杠路径（如 `C:\Users\xxx\OpenViking\data`），正则不匹配，导致 `workspacePath` 未清理，`ovConfPath` 指向错误位置（`...data/ov.conf` 而非 `...OpenViking/ov.conf`）
+- **影响**: `readExistingConfig()` 读取失败返回 `null`，向导始终走"重新开始"分支，已有配置不会被检测到。不会崩溃，功能静默降级
+- **修复**: 改用跨平台正则 `dataPath.replace(/[/\\]data[/\\]?$/, '')`
+- **发现日期**: 2026-06-26（v0.1.1→HEAD 审查）
 
 ## Code Quality
 
