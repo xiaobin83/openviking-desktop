@@ -9,7 +9,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "build:win": "pnpm tauri build && powershell -NoProfile -File scripts/rename-msi.ps1"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
