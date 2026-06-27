@@ -60,15 +60,14 @@ curl -fsSL https://raw.githubusercontent.com/xiaobin83/openviking-desktop/main/s
 - **动态 API 端口**：服务端口不再硬编码为 `1933`，现在从 `ov.conf` 的 `server.port` 读取，支持任意端口配置。
 - **Gatekeeper 放行/重置脚本**：新增 `allow-gatekeeper.sh`（一键放行）和 `reset-gatekeeper.sh`（恢复拦截），方便 macOS 用户测试和日常使用。
 - **调试辅助脚本**：新增 `occupy-port-1933.sh`，可模拟端口被其他应用占用，用于测试端口冲突处理流程。
+- **Windows 环境变量路径展开**：`expand_tilde` 现在额外展开 Windows `%VAR%` 环境变量引用（如 `%USERPROFILE%`），不存在的变量安全跳过；前端默认路径改用 `join()` 自动适配平台分隔符。
+- **配置选项统一**：`EMBEDDING_PROVIDERS` 提取为共享常量，配置页和向导统一引用消除硬编码；Provider 标签国际化逻辑从 `startsWith('wizard.')` 改为 `includes('.')`，废弃翻译键已清理。
 
 ## 修复
 
 - **工作目录重复创建**：修复首次运行向导中"工作目录"步骤每输入一个字符就创建目录的问题。现改为点击"下一步"时检查路径不存在才创建，并校验路径合法性。
 - **启动行为优化**：移除应用启动时的无条件自动启动，改为先进行端口冲突检测，确认无冲突后再启动服务，避免僵尸进程和端口孤儿问题。
-
-## 已知问题
-
-- **Windows 上"已有配置发现"功能失效**：向导中检测已有 `ov.conf` 的路径处理正则仅匹配正斜杠，Windows 反斜杠路径下无法正确检测。该功能将静默降级（始终走"重新开始"），不影响正常使用。计划在 v0.1.3 修复。
+- **向导路径回读展开结果**：WorkspaceStep fallback 路径下调用 `get_workspace_data_path` 回读 Rust 展开后的完整路径，确保 UI 显示正确（特别是 Windows 上 `%USERPROFILE%` 展开后）。
 
 ## 注意事项
 

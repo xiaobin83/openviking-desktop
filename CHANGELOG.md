@@ -30,9 +30,17 @@
 - **测试文件**：新增 `src/__tests__/OnboardingWizard.test.tsx`、`src/__tests__/detection.test.ts`、`src/__tests__/setup.ts`、`vitest.config.ts`。
 - **i18n 插值格式修正**：`prefix`/`suffix` 从默认 `{{`/`}}` 显式设置为 `{`/`}`，locale 文件中对应变量从 `{{version}}` 改为 `{version}`。新增向导端口检测相关翻译键 13 个（中英文各 13 个）。
 
-### ⚠️ 已知问题
+### 🪟 Windows 环境变量路径展开
 
-- **Windows 上向导"已有配置发现"失效**：`OnboardingWizard.tsx` 中路径清理正则为 `/\/data\/?$/`，仅匹配正斜杠，Windows 反斜杠路径下无法正确提取工作区路径。功能静默降级为"重新开始"，不影响正常使用。
+- **`expand_env_vars()`**：Rust 端 `expand_tilde` 现在额外展开 Windows `%VAR%` 环境变量引用（如 `%USERPROFILE%`），不存在的变量安全跳过，避免无限循环。支持路径中包含多个变量。
+- **前端路径构建改用 `join()`**：`config-fields.ts` 中默认工作区路径从字符串拼接改为 `path.ts` 的 `join()`，自动适配 Windows 反斜杠和 Unix 正斜杠。
+- **导出 `isWindows`**：`path.ts` 导出 `isWindows` 常量，`config-fields.ts` 不再重复检测平台。
+- **向导回读展开路径**：`WorkspaceStep.tsx` 在 fallback 路径下调用 `get_workspace_data_path` 回读 Rust 展开后的完整路径，确保 UI 显示正确。
+
+### 🔧 配置重构
+
+- **`EMBEDDING_PROVIDERS` 共享常量**：`config-fields.ts` 提取 `EMBEDDING_PROVIDERS` 数组，配置页 `provider` 下拉和向导 `EmbeddingStep` 统一引用，消除两份硬编码。
+- **Provider 标签国际化修正**：`EmbeddingStep.tsx` 从 `startsWith('wizard.')` 改为 `includes('.')` 判断是否需要翻译，适配 `ai.provider_options_local` 等新键名。废弃的 `wizard.provider_local` 翻译键已移除。
 
 ## [0.1.1] - 2026-06-23 — Windows 支持
 

@@ -65,15 +65,18 @@ You can then double-click to open OpenViking.app directly.
 - **Dynamic API port**: The API base URL is no longer hardcoded to `1933`. It now reads from `server.port` in `ov.conf`, supporting any port configuration.
 - **Gatekeeper scripts**: Added `allow-gatekeeper.sh` (one-click bypass) and `reset-gatekeeper.sh` (restore quarantine), making macOS testing and daily use more convenient.
 - **Debug helper script**: Added `occupy-port-1933.sh` to simulate a port occupied by another application for testing port conflict handling.
+- **Windows env var path expansion**: `expand_tilde` now expands Windows `%VAR%` environment variable references (e.g., `%USERPROFILE%`); non-existent variables are safely skipped. Frontend default paths now use `join()` to auto-adapt platform separators.
+- **Unified embedding provider options**: `EMBEDDING_PROVIDERS` extracted as a shared constant, eliminating duplicate hardcoded lists. Provider label i18n logic changed from `startsWith('wizard.')` to `includes('.')`; deprecated keys cleaned up.
 
 ## Bug Fixes
 
 - **Eager workspace directory creation**: Fixed an issue in the first-run wizard where typing each character in the "Working Directory" step created a directory. The directory is now only created when clicking "Next" if the path does not exist, with path validity validation.
 - **Startup behavior optimization**: Removed unconditional auto-start on app launch. The app now performs port conflict detection first, starting the server only after confirming no conflicts — preventing zombie processes and orphaned ports.
+- **Wizard reads back expanded path from Rust**: WorkspaceStep fallback now calls `get_workspace_data_path` to read back the Rust-expanded full path (especially `%USERPROFILE%` on Windows), ensuring the UI displays the correct resolved path.
 
 ## Known Issues
 
-- **Existing config detection not working on Windows**: The path regex in the wizard's config detection only matches forward slashes (`/`), so it fails on Windows paths which use backslashes. The feature silently degrades to "Start Fresh", with no impact on normal usage. Planned fix in v0.1.3.
+- (None)
 
 ## Notes
 
