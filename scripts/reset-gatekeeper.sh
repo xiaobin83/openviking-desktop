@@ -1,11 +1,11 @@
 #!/bin/bash
-# 重置 OpenViking.app 的 Gatekeeper 放行状态，重新施加检疫标记。
+# 重置 OpenViking-Desktop.app 的 Gatekeeper 放行状态，重新施加检疫标记。
 # 执行后，打开应用将再次被 Gatekeeper 拦截。
 #
 # Usage:
-#   bash scripts/reset-gatekeeper.sh                          Auto-detect app path
-#   bash scripts/reset-gatekeeper.sh /path/to/OpenViking.app  指定 app 路径
-#   bash scripts/reset-gatekeeper.sh --help                   显示帮助
+#   bash scripts/reset-gatekeeper.sh                                Auto-detect app path
+#   bash scripts/reset-gatekeeper.sh /path/to/OpenViking-Desktop.app  指定 app 路径
+#   bash scripts/reset-gatekeeper.sh --help                         显示帮助
 
 set -e
 
@@ -16,16 +16,16 @@ NC='\033[0m' # No Color
 
 show_help() {
     cat <<EOF
-重置 OpenViking.app 的 Gatekeeper 检疫标记，使其重新被拦截。
-
-Usage: $(basename "$0") [APP_PATH | --help]
-
-原理:
-  1. 移除系统 spctl 放行记录
-  2. 清除现有检疫标记
-  3. 重新施加"来自互联网下载"的检疫标记（com.apple.quarantine）
-
-执行后，双击 OpenViking.app 将再次出现：
+重置 OpenViking-Desktop.app 的 Gatekeeper 检疫标记，使其重新被拦截。
+ 
+ Usage: $(basename "$0") [APP_PATH | --help]
+ 
+ 原理:
+   1. 移除系统 spctl 放行记录
+   2. 清除现有检疫标记
+   3. 重新施加"来自互联网下载"的检疫标记（com.apple.quarantine）
+ 
+ 执行后，双击 OpenViking-Desktop.app 将再次出现：
   "无法打开，因为无法验证开发者"
 
 需要用户再次右键 → 打开手动放行。
@@ -34,8 +34,8 @@ Options:
   --help    Show this help and exit
 
 Without APP_PATH, the script searches the following locations:
-  1. /Applications/OpenViking.app
-  2. src-tauri/target/release/bundle/macos/OpenViking.app
+   1. /Applications/OpenViking-Desktop.app
+   2. src-tauri/target/release/bundle/macos/OpenViking-Desktop.app
 EOF
     exit 0
 }
@@ -56,8 +56,8 @@ if [ -n "${1:-}" ]; then
 else
     # 自动检测
     CANDIDATES=(
-        "/Applications/OpenViking.app"
-        "src-tauri/target/release/bundle/macos/OpenViking.app"
+        "/Applications/OpenViking-Desktop.app"
+        "src-tauri/target/release/bundle/macos/OpenViking-Desktop.app"
     )
     APP_PATH=""
     for candidate in "${CANDIDATES[@]}"; do
@@ -67,7 +67,7 @@ else
         fi
     done
     if [ -z "$APP_PATH" ]; then
-        echo -e "${RED}未找到 OpenViking.app。请指定路径：$(basename "$0") /path/to/OpenViking.app${NC}"
+        echo -e "${RED}未找到 OpenViking-Desktop.app。请指定路径：$(basename "$0") /path/to/OpenViking-Desktop.app${NC}"
         exit 1
     fi
 fi
@@ -116,7 +116,7 @@ echo ""
 echo -e "${GREEN}=== 完成 ===${NC}"
 echo "已为 $COUNT 个可执行文件重新施加检疫标记。"
 echo ""
-echo -e "${YELLOW}现在双击打开 OpenViking.app 将再次触发 Gatekeeper 拦截。${NC}"
+echo -e "${YELLOW}现在双击打开 OpenViking-Desktop.app 将再次触发 Gatekeeper 拦截。${NC}"
 echo "用户需通过 右键 → 打开 手动放行。"
 echo ""
 echo "如需再次放行，运行: bash scripts/allow-gatekeeper.sh"

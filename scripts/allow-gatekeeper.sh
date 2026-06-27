@@ -1,10 +1,10 @@
 #!/bin/bash
-# 放行 OpenViking.app 通过 Gatekeeper，使其无需手动右键打开即可运行。
+# 放行 OpenViking-Desktop.app 通过 Gatekeeper，使其无需手动右键打开即可运行。
 #
 # Usage:
-#   bash scripts/allow-gatekeeper.sh                          Auto-detect app path
-#   bash scripts/allow-gatekeeper.sh /path/to/OpenViking.app  指定 app 路径
-#   bash scripts/allow-gatekeeper.sh --help                   显示帮助
+#   bash scripts/allow-gatekeeper.sh                                Auto-detect app path
+#   bash scripts/allow-gatekeeper.sh /path/to/OpenViking-Desktop.app  指定 app 路径
+#   bash scripts/allow-gatekeeper.sh --help                         显示帮助
 
 set -e
 
@@ -15,7 +15,7 @@ NC='\033[0m' # No Color
 
 show_help() {
     cat <<EOF
-放行 OpenViking.app 通过 Gatekeeper，移除检疫标记以便正常运行。
+放行 OpenViking-Desktop.app 通过 Gatekeeper，移除检疫标记以便正常运行。
 
 Usage: $(basename "$0") [APP_PATH | --help]
 
@@ -23,8 +23,8 @@ Options:
   --help    Show this help and exit
 
 Without APP_PATH, the script searches the following locations:
-  1. /Applications/OpenViking.app
-  2. src-tauri/target/release/bundle/macos/OpenViking.app
+   1. /Applications/OpenViking-Desktop.app
+   2. src-tauri/target/release/bundle/macos/OpenViking-Desktop.app
 EOF
     exit 0
 }
@@ -45,8 +45,8 @@ if [ -n "${1:-}" ]; then
 else
     # 自动检测
     CANDIDATES=(
-        "/Applications/OpenViking.app"
-        "src-tauri/target/release/bundle/macos/OpenViking.app"
+        "/Applications/OpenViking-Desktop.app"
+        "src-tauri/target/release/bundle/macos/OpenViking-Desktop.app"
     )
     APP_PATH=""
     for candidate in "${CANDIDATES[@]}"; do
@@ -56,7 +56,7 @@ else
         fi
     done
     if [ -z "$APP_PATH" ]; then
-        echo -e "${RED}未找到 OpenViking.app。请指定路径：$(basename "$0") /path/to/OpenViking.app${NC}"
+        echo -e "${RED}未找到 OpenViking-Desktop.app。请指定路径：$(basename "$0") /path/to/OpenViking-Desktop.app${NC}"
         exit 1
     fi
 fi
@@ -100,7 +100,7 @@ done < <(find "$APP_PATH" -type f -perm +111 -print0 2>/dev/null)
 echo ""
 echo -e "${GREEN}=== 完成 ===${NC}"
 echo "已清除 $COUNT 个可执行文件的检疫标记。"
-echo "OpenViking.app 现在可以直接双击打开，无需手动右键放行。"
+echo "OpenViking-Desktop.app 现在可以直接双击打开，无需手动右键放行。"
 echo ""
 if [ "$COUNT" -eq 0 ] && [ -z "$QUARANTINED" ]; then
     echo -e "${YELLOW}未发现任何检疫标记，应用可能已处于放行状态。${NC}"
