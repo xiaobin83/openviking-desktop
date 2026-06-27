@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 're
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
+import { dirname } from '../../lib/path';
 import type { OvConfig } from '../../lib/types';
 
 const isWindows = typeof navigator !== 'undefined' && /Win/i.test(navigator.platform);
@@ -32,7 +33,7 @@ const WorkspaceStep = forwardRef<WorkspaceStepHandle, WorkspaceStepProps>(
     if (preFilledWorkspace?.trim()) {
       // formData.storage.workspace is the data path (<workspace>/data);
       // the input field expects the working directory (parent of data).
-      const workingDir = preFilledWorkspace.replace(/\/data\/?$/, '');
+      const workingDir = dirname(preFilledWorkspace);
       setDraft(workingDir);
       return;
     }

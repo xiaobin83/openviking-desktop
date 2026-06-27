@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { getDefaultConfigJson } from '../../lib/config-fields';
 import { readExistingConfig, prefillFormData, mergeWizardChanges } from '../../lib/detection';
+import { dirname, join } from '../../lib/path';
 import type { OvConfig, PythonEnvState } from '../../lib/types';
 import WizardProgress from './WizardProgress';
 import InstallStep from './InstallStep';
@@ -107,8 +108,8 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
       try {
         const dataPath = await workspaceRef.current?.persist();
         if (dataPath) {
-          const workspacePath = dataPath.replace(/\/data\/?$/, '');
-          const ovConfPath = `${workspacePath}/ov.conf`;
+          const workspacePath = dirname(dataPath);
+          const ovConfPath = join(workspacePath, 'ov.conf');
           const configInfo = await readExistingConfig(ovConfPath);
           if (configInfo) {
             // Save full config for merge-on-complete (preserve non-wizard fields)

@@ -1,6 +1,6 @@
 # Known Issues
 
-> 分支: `main` | 更新时间: 2026-06-26 | 已修复 8/10
+> 分支: `main` | 更新时间: 2026-06-27 | 已修复 10/10
 
 ## Path
 
@@ -30,12 +30,12 @@
   - macOS/Linux: `~/.openviking/data`
 - **同样修复**: `WorkspaceStep.tsx` catch 回退路径（`WorkspaceStep.tsx:7-8, 31-32`）
 
-### ❌ [UNFIXED] 向导"发现已有配置"功能在 Windows 上失效
+### ✅ [FIXED] 向导"发现已有配置"功能在 Windows 上失效
 
-- **状态**: 未修复 — `OnboardingWizard.tsx:110` 的 `dataPath.replace(/\/data\/?$/, '')` 仅匹配正斜杠
+- **状态**: 已修复 — `OnboardingWizard.tsx:110-111` 改用 `path.dirname()` + `path.join()` 跨平台路径函数
 - **根因**: Windows 上 `get_workspace_data_path` 返回反斜杠路径（如 `C:\Users\xxx\OpenViking\data`），正则不匹配，导致 `workspacePath` 未清理，`ovConfPath` 指向错误位置（`...data/ov.conf` 而非 `...OpenViking/ov.conf`）
 - **影响**: `readExistingConfig()` 读取失败返回 `null`，向导始终走"重新开始"分支，已有配置不会被检测到。不会崩溃，功能静默降级
-- **修复**: 改用跨平台正则 `dataPath.replace(/[/\\]data[/\\]?$/, '')`
+- **修复**: 新增 `src/lib/path.ts` 跨平台路径工具（`dirname`/`join`/`basename`），`OnboardingWizard.tsx:110-111` 改用 `path.dirname(dataPath)` + `path.join(workspacePath, 'ov.conf')` 替代正则+字符串拼接；`WorkspaceStep.tsx:36` 同步改用 `path.dirname()`
 - **发现日期**: 2026-06-26（v0.1.1→HEAD 审查）
 
 ## Code Quality
@@ -46,14 +46,15 @@
 ### ✅ [FIXED] unused variable workspace
 - **状态**: 已修复 — 原始代码已被重构移除
 
-### 清理
-- 移除死代码常量 `DEFAULT_OV_CONF_PATH` 和 `DEFAULT_UNIX_WORKSPACE`
+### ✅ [FIXED] 移除死代码常量
+- **状态**: 已确认清理 — 常量 `DEFAULT_OV_CONF_PATH` 和 `DEFAULT_UNIX_WORKSPACE` 已在先前修复中移出代码库
 
 ## Runtime
 
-### ❌ [UNFIXED] 首次启动服务可能因等待时间不足导致失败
-- **状态**: 未修复 — 首次启动服务时，Python 环境初始化或依赖加载可能耗时较长，超过当前等待超时，导致启动失败
-- **缓解**: 再次点击"启动服务"按钮重试即可；通常第二次启动时环境已就绪，可以正常启动
+### ✅ [FIXED] 首次启动服务可能因等待时间不足导致失败
+- **状态**: 已修复 — `process.rs:195` 启动超时从 30s 延长至 60s，特别缓解 Windows 上 Python 首次加载的慢速 I/O 问题
+- **根因**: 首次启动服务时，Python 环境初始化或依赖加载可能耗时较长，30s 超时在 Windows 上尤其紧张
+- **修复**: `process.rs:195` 将 `startup_timeout` 从 30s 增加至 60s
 
 ## Build
 

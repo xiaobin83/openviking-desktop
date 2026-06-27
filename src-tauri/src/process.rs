@@ -192,7 +192,7 @@ pub async fn spawn_server(state: &ServerState, app: &AppHandle) -> Result<String
     tokio::spawn(async move {
         let url = format!("http://127.0.0.1:{}/health", health_port);
         let start = std::time::Instant::now();
-        let startup_timeout = Duration::from_secs(30);
+        let startup_timeout = Duration::from_secs(60);
 
         let healthy = wait_for_health(&url, &root_api_key, start, startup_timeout, 2).await;
 

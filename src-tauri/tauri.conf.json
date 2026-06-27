@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-cli/schema.json",
-  "productName": "OpenViking",
+  "productName": "OpenViking-Desktop",
   "version": "0.1.2",
   "identifier": "com.openviking.desktop",
   "build": {
@@ -43,10 +43,6 @@
     "macOS": {
       "minimumSystemVersion": "14.0"
     },
-    "windows": {
-      "wix": {
-        "language": "zh-CN"
-      }
-    }
+    "windows": {}
   }
 }
