@@ -1,10 +1,21 @@
+import { join, isWindows } from './path';
 import type { OvConfig } from './types';
 
 export type FieldType = 'string' | 'number' | 'boolean' | 'select' | 'password';
 export type TabId = 'basic' | 'ai' | 'storage' | 'advanced' | 'feishu';
 
-const isWindows = typeof navigator !== 'undefined' && /Win/i.test(navigator.platform);
-const DEFAULT_DATA_DIR = isWindows ? '%USERPROFILE%\\OpenViking\\data' : '~/.openviking/data';
+const DEFAULT_DATA_DIR = join(isWindows ? '%USERPROFILE%' : '~', 'OpenViking', 'data');
+
+/** Shared Embedding provider options used by both the config page and the onboarding wizard. */
+export const EMBEDDING_PROVIDERS = [
+  { label: 'ai.provider_options_local', value: 'local' },
+  { label: 'Volcengine', value: 'volcengine' },
+  { label: 'OpenAI', value: 'openai' },
+  { label: 'Jina AI', value: 'jina' },
+  { label: 'Gemini', value: 'gemini' },
+  { label: 'DashScope', value: 'dashscope' },
+  { label: 'VikingDB', value: 'vikingdb' },
+] as const;
 
 export interface ConfigField {
   path: string;
@@ -92,15 +103,7 @@ const FIELDS: ConfigField[] = [
     tab: 'ai',
     group: 'dense',
     defaultValue: 'local',
-    options: [
-      { label: 'ai.provider_options_local', value: 'local' },
-      { label: 'volcengine', value: 'volcengine' },
-      { label: 'openai', value: 'openai' },
-      { label: 'jina', value: 'jina' },
-      { label: 'gemini', value: 'gemini' },
-      { label: 'dashscope', value: 'dashscope' },
-      { label: 'vikingdb', value: 'vikingdb' },
-    ],
+    options: EMBEDDING_PROVIDERS.map((p) => ({ ...p })),
   },
   {
     path: 'embedding.dense.api_base',

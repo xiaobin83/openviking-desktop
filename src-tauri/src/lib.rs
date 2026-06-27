@@ -110,8 +110,9 @@ async fn stop_server(
     process::stop_server(&state, &app).await
 }
 
+/// Expand `~` (Unix home) and `%VAR%` (Windows environment variables) in a path.
 pub fn expand_tilde(path: &str) -> String {
-    if path.starts_with("~/") || path == "~" {
+    let expanded = if path.starts_with("~/") || path == "~" {
         let home = get_home_dir();
         let trimmed = path.strip_prefix("~").unwrap_or("");
         home.join(trimmed.strip_prefix('/').unwrap_or(trimmed))
@@ -119,7 +120,41 @@ pub fn expand_tilde(path: &str) -> String {
             .to_string()
     } else {
         path.to_string()
+    };
+    expand_env_vars(&expanded)
+}
+
+/// Expand Windows `%VAR%` environment variable references (e.g. `%USERPROFILE%`).
+/// Non-existent variables are left as-is.
+fn expand_env_vars(path: &str) -> String {
+    let mut result = path.to_string();
+    // Loop to handle multiple variables in one path
+    while let Some(start) = result.find('%') {
+        // Skip escaped percent signs (%%)
+        if start + 1 < result.len() && result.as_bytes()[start + 1] == b'%' {
+            result.replace_range(start..start + 2, "%");
+            continue;
+        }
+        if let Some(end) = result[start + 1..].find('%') {
+            let var_name = &result[start + 1..start + 1 + end];
+            // Only expand known-looking variable names (alphanumeric + underscore)
+            if !var_name.is_empty() && var_name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                match std::env::var(var_name) {
+                    Ok(val) => {
+                        result.replace_range(start..start + 2 + end, &val);
+                        continue;
+                    }
+                    Err(_) => {
+                        // Variable not set — skip past it to avoid infinite loop
+                        result.replace_range(start..start + 2 + end, "");
+                        continue;
+                    }
+                }
+            }
+        }
+        break; // malformed or no closing '%' — stop
     }
+    result
 }
 
 pub fn get_default_workspace_path() -> String {

@@ -230,7 +230,6 @@
   "wizard.install_progress": "正在安装 OpenViking...",
   "wizard.already_installed": "OpenViking 已安装，跳过此步骤...",
   "wizard.version_selection_hint": "OpenViking 已安装。您可以在此选择版本并重新安装，或点击「下一步」继续。",
-  "wizard.provider_local": "本地 (Local)",
   "wizard.provider_custom": "自定义...",
   "wizard.custom_provider_fields": "配置自定义 Provider：",
   "wizard.select_provider": "选择 Provider",

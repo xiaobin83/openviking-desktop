@@ -6,7 +6,7 @@
  * without needing Node.js `path`.
  */
 
-const isWindows = typeof navigator !== 'undefined' && /Win/i.test(navigator.platform);
+export const isWindows = typeof navigator !== 'undefined' && /Win/i.test(navigator.platform);
 
 /** Platform path separator. */
 export const SEP = isWindows ? '\\' : '/';

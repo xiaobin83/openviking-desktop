@@ -42,9 +42,14 @@ const WorkspaceStep = forwardRef<WorkspaceStepHandle, WorkspaceStepProps>(
         setDraft(defaultPath);
         persistWorkspace(defaultPath).catch(() => {});
       })
-      .catch(() => {
+      .catch(async () => {
         setDraft(FALLBACK_WORKSPACE);
-        persistWorkspace(FALLBACK_WORKSPACE).catch(() => {});
+        try {
+          await persistWorkspace(FALLBACK_WORKSPACE);
+          // Read back the expanded path (Rust's expand_tilde now expands %USERPROFILE%)
+          const dataPath = await invoke<string>('get_workspace_data_path');
+          setDraft(dirname(dataPath));
+        } catch {}
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

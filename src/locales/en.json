@@ -230,7 +230,6 @@
   "wizard.install_progress": "Installing OpenViking...",
   "wizard.already_installed": "OpenViking already installed, skipping...",
   "wizard.version_selection_hint": "OpenViking is already installed. You can change versions below and reinstall, or click Next to continue.",
-  "wizard.provider_local": "Local",
   "wizard.provider_custom": "Custom...",
   "wizard.custom_provider_fields": "Configure your custom provider:",
   "wizard.select_provider": "Select a provider",

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { EMBEDDING_PROVIDERS } from '../../lib/config-fields';
 import type { OvConfig } from '../../lib/types';
 
 interface EmbeddingStepProps {
@@ -8,15 +9,7 @@ interface EmbeddingStepProps {
   hasLocalEmbed: boolean;
 }
 
-const PROVIDER_OPTIONS = [
-  { label: 'wizard.provider_local', value: 'local' },
-  { label: 'volcengine', value: 'volcengine' },
-  { label: 'openai', value: 'openai' },
-  { label: 'jina', value: 'jina' },
-  { label: 'gemini', value: 'gemini' },
-  { label: 'dashscope', value: 'dashscope' },
-  { label: 'vikingdb', value: 'vikingdb' },
-];
+const PROVIDER_OPTIONS = [...EMBEDDING_PROVIDERS];
 
 const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
   local: 'bge-small-zh-v1.5-f16',
@@ -140,7 +133,7 @@ export default function EmbeddingStep({ formData, onChange, hasLocalEmbed }: Emb
         >
           {visibleProviders.map((opt) => (
             <option key={opt.value} value={opt.value}>
-              {opt.label.startsWith('wizard.') ? t(opt.label) : opt.label}
+              {opt.label.includes('.') ? t(opt.label) : opt.label}
             </option>
           ))}
         </select>
